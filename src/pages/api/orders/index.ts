@@ -5,6 +5,7 @@ import pool from '@/lib/db';
 import { verifyToken, hasPermission } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { enforceBranchIsolation } from '@/lib/branch';
+import { createNotification, createNotificationForAllAdmins } from '@/lib/notifications';
 
 export default async function handler(
   req: NextApiRequest,
@@ -12,7 +13,6 @@ export default async function handler(
 ) {
   let user: any = null;
 
-  // Try token verification safely for public requests
   try {
     user = verifyToken(req);
   } catch (error) {
@@ -77,21 +77,15 @@ export default async function handler(
         endDate,
       } = req.query;
 
-      // ---------------- STATUS FILTER ----------------
-
       if (status && status !== 'all') {
         query += ` AND o.status = $${idx++}`;
         queryParams.push(status);
       }
 
-      // ---------------- PAYMENT FILTER ----------------
-
       if (payment && payment !== 'all') {
         query += ` AND o.payment_status = $${idx++}`;
         queryParams.push(payment);
       }
-
-      // ---------------- BRANCH FILTER ----------------
 
       if (branch && branch !== 'all') {
         if (user.role === 'superadmin') {
@@ -99,8 +93,6 @@ export default async function handler(
           queryParams.push(branch);
         }
       }
-
-      // ---------------- SEARCH ----------------
 
       if (search) {
         query += `
@@ -110,12 +102,9 @@ export default async function handler(
             OR o.client_phone ILIKE $${idx}
           )
         `;
-
         queryParams.push(`%${search}%`);
         idx++;
       }
-
-      // ---------------- DATE FILTERS ----------------
 
       if (startDate) {
         query += ` AND o.created_at >= $${idx++}`;
@@ -127,16 +116,12 @@ export default async function handler(
         queryParams.push(endDate);
       }
 
-      // ---------------- ORDER ----------------
-
       query += ` ORDER BY o.created_at DESC`;
 
       const result = await pool.query(query, queryParams);
-
       return res.status(200).json(result.rows);
     } catch (error) {
       console.error('GET ORDERS ERROR:', error);
-
       return res.status(500).json({
         error: 'Failed to fetch orders',
       });
@@ -157,8 +142,6 @@ export default async function handler(
         notes,
       } = req.body;
 
-      // ---------------- VALIDATION ----------------
-
       if (!client_name) {
         return res.status(400).json({
           error: 'Client name is required',
@@ -171,15 +154,11 @@ export default async function handler(
         });
       }
 
-      // ---------------- ORDER NUMBER ----------------
-
       const orderNumber =
         'ORD-' +
         Date.now() +
         '-' +
         Math.floor(Math.random() * 1000);
-
-      // ---------------- DETERMINE BRANCH ----------------
 
       let branchId: number | null = null;
 
@@ -193,11 +172,8 @@ export default async function handler(
           branchId = req.body.branch_id;
         }
       } else {
-        // Public website default branch
         branchId = 1;
       }
-
-      // ---------------- CREATE ORDER ----------------
 
       const orderResult = await pool.query(
         `
@@ -240,14 +216,12 @@ export default async function handler(
       const order = orderResult.rows[0];
       const orderId = order.id;
 
-      // ---------------- INSERT ORDER ITEMS ----------------
-
       let total = 0;
 
       for (const item of items) {
         const productRes = await pool.query(
           `
-          SELECT id, price
+          SELECT id, price, name
           FROM products
           WHERE id = $1
           `,
@@ -261,12 +235,9 @@ export default async function handler(
         }
 
         const product = productRes.rows[0];
-
         const quantity = Number(item.quantity);
         const unitPrice = Number(product.price);
-
         const subtotal = quantity * unitPrice;
-
         total += subtotal;
 
         await pool.query(
@@ -298,8 +269,6 @@ export default async function handler(
         );
       }
 
-      // ---------------- UPDATE TOTAL ----------------
-
       await pool.query(
         `
         UPDATE orders
@@ -309,7 +278,28 @@ export default async function handler(
         [total, orderId]
       );
 
-      // ---------------- AUDIT LOG ----------------
+      // ========== ADD NOTIFICATIONS ==========
+      
+      if (user) {
+        // Notify the user who created the order
+        await createNotification({
+          userId: user.userId,
+          title: 'Order Created Successfully',
+          message: `Your order #${orderNumber} has been created. Total: ${total.toLocaleString()} RWF`,
+          type: 'order',
+          priority: 'medium',
+          link: `/dashboard/orders/${orderId}`
+        });
+      }
+
+      // Notify all admins about new order
+      await createNotificationForAllAdmins(
+        'New Order Created',
+        `Order #${orderNumber} has been created for ${client_name}. Amount: ${total.toLocaleString()} RWF`,
+        'order',
+        'medium',
+        `/dashboard/orders/${orderId}`
+      );
 
       if (user) {
         await logAudit({
@@ -339,7 +329,6 @@ export default async function handler(
       });
     } catch (error) {
       console.error('CREATE ORDER ERROR:', error);
-
       return res.status(500).json({
         error: 'Failed to create order',
       });
@@ -366,6 +355,13 @@ export default async function handler(
         });
       }
 
+      // Get order details before deleting for notification
+      const orderResult = await pool.query(
+        `SELECT order_number FROM orders WHERE id = $1`,
+        [id]
+      );
+      const orderNumber = orderResult.rows[0]?.order_number;
+
       await pool.query(
         `
         UPDATE orders
@@ -376,6 +372,17 @@ export default async function handler(
         `,
         [user.userId, id]
       );
+
+      // Notify admins about deletion
+      if (orderNumber) {
+        await createNotificationForAllAdmins(
+          'Order Deleted',
+          `Order #${orderNumber} has been deleted.`,
+          'order',
+          'low',
+          '/dashboard/orders'
+        );
+      }
 
       await logAudit({
         userId: user.userId,
@@ -393,16 +400,11 @@ export default async function handler(
       });
     } catch (error) {
       console.error('DELETE ORDER ERROR:', error);
-
       return res.status(500).json({
         error: 'Failed to delete order',
       });
     }
   }
-
-  // =========================================================
-  // METHOD NOT ALLOWED
-  // =========================================================
 
   return res.status(405).json({
     error: 'Method not allowed',

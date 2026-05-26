@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { createNotification } from '@/lib/notifications';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'hardcoded-secret-2026';
 
@@ -25,6 +26,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) return res.status(401).json({ error: 'Invalid credentials' });
 
+    // ========== ADD LOGIN NOTIFICATION ==========
+    await createNotification({
+      userId: user.id,
+      title: 'Login Successful',
+      message: `You logged in at ${new Date().toLocaleString()}`,
+      type: 'auth',
+      priority: 'low',
+      link: '/dashboard'
+    });
+
     // If 2FA enabled, create a temporary token (short-lived) and ask for code
     if (user.two_factor_enabled) {
       const tempToken = jwt.sign(
@@ -45,8 +56,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       {
         userId: user.id,
         phone: user.phone,
-        role: user.role,            // role name from DB
-        branchId: user.branch_id,   // branch ID from DB
+        role: user.role,
+        branchId: user.branch_id,
         forceReset: user.force_password_reset,
       },
       JWT_SECRET,

@@ -3,6 +3,7 @@ import pool from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { enforceBranchIsolation } from '@/lib/branch';
+import { createNotification, createNotificationForAllAdmins } from '@/lib/notifications';
 
 export default async function handler(
   req: NextApiRequest,
@@ -188,6 +189,15 @@ export default async function handler(
 
       const newWorker = result.rows[0];
 
+      // ========== ADD NOTIFICATION ==========
+      await createNotificationForAllAdmins(
+        'New Worker Added',
+        `${full_name} has been added as a new worker.`,
+        'worker',
+        'low',
+        `/dashboard/workers/${newWorker.id}`
+      );
+
       await logAudit({
         userId: user.userId,
         action: 'CREATE',
@@ -253,6 +263,7 @@ export default async function handler(
       }
 
       const oldData = existing.rows[0];
+      const statusChanged = oldData.is_active !== is_active;
 
       const result = await pool.query(
         `
@@ -285,8 +296,30 @@ export default async function handler(
         ]
       );
 
-      const updatedWorker =
-        result.rows[0];
+      const updatedWorker = result.rows[0];
+
+      // ========== ADD NOTIFICATION FOR STATUS CHANGE ==========
+      if (statusChanged) {
+        if (is_active === true) {
+          await createNotification({
+            userId: user.userId,
+            title: 'Worker Activated',
+            message: `${full_name} has been activated.`,
+            type: 'worker',
+            priority: 'low',
+            link: `/dashboard/workers/${id}`
+          });
+        } else {
+          await createNotification({
+            userId: user.userId,
+            title: 'Worker Deactivated',
+            message: `${full_name} has been deactivated.`,
+            type: 'worker',
+            priority: 'low',
+            link: `/dashboard/workers/${id}`
+          });
+        }
+      }
 
       await logAudit({
         userId: user.userId,
