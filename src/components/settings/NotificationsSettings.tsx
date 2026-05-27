@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { useTranslation } from '@/hooks/useTranslation';
+import { ROLES } from "@/lib/roles";
 
 interface Config {
   key: string;
@@ -16,7 +17,7 @@ export default function NotificationsConfigSettings() {
   const [error, setError] = useState('');
 
   const userRole = typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('user') || '{}').role) : null;
-  const canEdit = userRole === 'superadmin';
+  const canEdit = userRole === ROLES.SUPERADMIN;
 
   const fetchConfigs = async () => {
     setLoading(true);

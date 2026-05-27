@@ -3,6 +3,7 @@ import type { AppProps } from 'next/app';
 import BackToTop from '@/components/BackToTop';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { getAuthHeaders, getUserRoleFromToken } from '@/lib/auth-client';
+import { ROLES } from '@/lib/roles';
 import '../styles/globals.css';
 import '../styles/tokens.css';
 import '../styles/header.css';
@@ -43,7 +44,7 @@ export default function App({ Component, pageProps }: AppProps) {
         const data = await res.json();
         if (data.enabled) {
           const userRole = getUserRoleFromToken();
-          if (userRole !== 'superadmin' && window.location.pathname !== '/maintenance') {
+          if (userRole !== ROLES.SUPERADMIN && window.location.pathname !== '/maintenance') {
             window.location.href = '/maintenance';
           }
         }

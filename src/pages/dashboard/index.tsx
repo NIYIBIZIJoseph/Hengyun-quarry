@@ -23,6 +23,7 @@ import AttendanceTrendChart from '@/components/dashboard/AnalyticsPanel/Attendan
 import BranchPerformance from '@/components/dashboard/BranchPerformance';
 import PendingApprovals from '@/components/dashboard/PendingApprovals';
 
+
 export default function DashboardPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -31,7 +32,7 @@ export default function DashboardPage() {
   }, []);
 
   const isSupervisor = userRole === 'supervisor';
-  const isAdmin = userRole === 'admin' || userRole === 'superadmin';
+  const isAdmin = userRole === ROLES.ADMIN || userRole === ROLES.SUPERADMIN;
 
   if (!userRole) return <DashboardLayout>Loading...</DashboardLayout>;
 

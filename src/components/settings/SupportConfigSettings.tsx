@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { useTranslation } from '@/hooks/useTranslation';
+import { ROLES } from "@/lib/roles";
 
 interface Config {
   key: string;
@@ -16,7 +17,7 @@ export default function SupportConfigSettings() {
   const [error, setError] = useState('');
 
   const userRole = typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('user') || '{}').role) : null;
-  const canEdit = userRole === 'superadmin';
+  const canEdit = userRole === ROLES.SUPERADMIN;
 
   const fetchConfigs = async () => {
     setLoading(true);
@@ -80,7 +81,7 @@ export default function SupportConfigSettings() {
         </div>
 
         <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px' }}>{t('autoCloseDays') || 'Auto‑close Days (inactivity)'}</label>
+          <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px' }}>{t('autoCloseDays') || 'Auto-close Days (inactivity)'}</label>
           <input
             type="number"
             value={getValue('support_auto_close_days')}
@@ -88,7 +89,7 @@ export default function SupportConfigSettings() {
             disabled={!canEdit || saving}
             style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '6px' }}
           />
-          <small>{t('autoCloseDaysDesc') || 'Days after last activity before auto‑closing a resolved ticket.'}</small>
+          <small>{t('autoCloseDaysDesc') || 'Days after last activity before auto-closing a resolved ticket.'}</small>
         </div>
 
         <div style={{ marginBottom: '1rem' }}>

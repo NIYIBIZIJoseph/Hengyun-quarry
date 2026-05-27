@@ -3,6 +3,7 @@ import pool from '@/lib/db';
 import { verifyToken, hasPermission } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { enforceBranchIsolation } from '@/lib/branch';
+import { ROLES } from '@/lib/roles';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = verifyToken(req);
@@ -49,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (image_url !== undefined) { updates.push(`image_url = $${idx++}`); values.push(image_url); }
     if (stock_quantity !== undefined) { updates.push(`stock_quantity = $${idx++}`); values.push(stock_quantity); }
     if (branch_id !== undefined) {
-      if (user.role !== 'superadmin') {
+      if (user.role !== ROLES.SUPERADMIN) {
         return res.status(403).json({ error: 'Only superadmin can change branch' });
       }
       updates.push(`branch_id = $${idx++}`);

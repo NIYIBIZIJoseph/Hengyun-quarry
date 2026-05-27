@@ -1,17 +1,29 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { verifyToken, hasPermission } from '../auth';
+import { getUserRoleFromToken } from '../auth-client';
 
 export function requirePermission(permission: string) {
-  return async (req: NextApiRequest, res: NextApiResponse, next: () => void) => {
-    const user = verifyToken(req);
-    if (!user) {
+  return async (
+    req: NextApiRequest,
+    res: NextApiResponse,
+    handler: Function
+  ) => {
+    // ⚠️ no args (your current function limitation)
+    const role = getUserRoleFromToken();
+
+    if (!role) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    const allowed = await hasPermission(user.userId, permission);
-    if (!allowed) {
+
+    const isAllowed =
+      role === 'superadmin' ||
+      (role === 'admin' && permission !== 'system:admin');
+
+    if (!isAllowed) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    (req as any).authUser = user; // attach for later use
-    next();
+
+    (req as any).authUser = { role };
+
+    return handler(req, res);
   };
 }

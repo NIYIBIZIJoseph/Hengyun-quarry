@@ -4,6 +4,7 @@ import { verifyToken } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { enforceBranchIsolation } from '@/lib/branch';
 import { createNotification, createNotificationForAllAdmins } from '@/lib/notifications';
+import { ROLES } from '@/lib/roles';
 
 export default async function handler(
   req: NextApiRequest,
@@ -137,8 +138,9 @@ export default async function handler(
 
       let branchId = user.branchId;
 
+      // ✅ FIXED: numeric role check using ROLES constant
       if (
-        user.role === 'superadmin' &&
+        user.role === ROLES.SUPERADMIN &&
         req.body.branch_id
       ) {
         branchId = req.body.branch_id;

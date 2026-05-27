@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
 import { verifyToken, hasPermission } from '@/lib/auth';
 
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = verifyToken(req);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
@@ -12,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // ✅ Use user.role (string) instead of user.roleId
   let branchFilter = '';
   let branchParams: any[] = [];
-  if (user.role !== 'superadmin' && user.branchId) {
+   if (user.role !== 1 && user.branchId) {
     branchFilter = ' AND o.branch_id = $1';
     branchParams = [user.branchId];
   }

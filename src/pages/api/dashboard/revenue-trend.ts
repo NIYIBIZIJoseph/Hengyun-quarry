@@ -13,7 +13,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   let branchFilter = '';
   let branchParams: any[] = [];
-  if (user.roleId !== 1 && user.branchId) {
+  if (user.role !== 1 && user.branchId) {
     branchFilter = ' AND o.branch_id = $1';
     branchParams = [user.branchId];
   }

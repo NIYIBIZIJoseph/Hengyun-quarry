@@ -1,10 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
+import { ROLES } from '@/lib/roles';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = verifyToken(req);
-  if (!user || user.role !== 'superadmin') {
+ if (!user || user.role !== ROLES.SUPERADMIN) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 

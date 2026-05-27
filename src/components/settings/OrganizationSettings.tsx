@@ -3,6 +3,7 @@ import { getAuthHeaders } from '@/lib/auth-client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faEdit, faTrashAlt, faSave, faTimes, faBuilding, faGlobe } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
+import { ROLES } from "@/lib/roles";
 
 interface Branch {
   id: number;
@@ -38,7 +39,7 @@ export default function OrganizationSettings() {
   const [savingGlobal, setSavingGlobal] = useState(false);
 
   const userRole = typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('user') || '{}').role) : null;
-  const canEdit = userRole === 'superadmin';
+  const canEdit = userRole === ROLES.SUPERADMIN;
 
   const fetchData = async () => {
     setLoading(true);

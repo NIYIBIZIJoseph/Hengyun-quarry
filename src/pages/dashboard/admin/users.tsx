@@ -4,6 +4,7 @@ import { getAuthHeaders, getUserRoleFromToken } from '@/lib/auth-client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faTrashAlt, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
+import { ROLES } from '@/lib/roles';
 
 interface User {
   id: number;
@@ -247,7 +248,7 @@ export default function UserManagement() {
                 ))}
               </select>
 
-              {userRole === 'superadmin' && branches.length > 0 && (
+              {userRole === ROLES.SUPERADMIN && branches.length > 0 && (
                 <>
                   <label style={{ display: 'block', marginBottom: '4px' }}>{t('branchOptional') || 'Branch (optional)'}</label>
                   <select

@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const result = await pool.query(
       `SELECT u.id, u.full_name, u.phone, u.password, u.branch_id, u.force_password_reset,
-              u.two_factor_enabled, r.id as role_id, r.name as role
+              u.two_factor_enabled, r.id as role
        FROM users u
        JOIN roles r ON u.role_id = r.id
        WHERE u.phone = $1 AND u.deleted_at IS NULL`,

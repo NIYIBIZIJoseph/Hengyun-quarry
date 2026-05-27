@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
 import { verifyToken, hasPermission } from '@/lib/auth';
+import { ROLES } from '@/lib/roles';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).end();
@@ -13,7 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   let branchFilter = '';
   let branchParams: any[] = [];
-  if (user.roleId !== 1 && user.branchId) {
+  if (user.role !== ROLES.SUPERADMIN && user.branchId) {
     branchFilter = ' AND branch_id = $1';
     branchParams = [user.branchId];
   }

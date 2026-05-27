@@ -2,10 +2,11 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { verifyToken } from '@/lib/auth';
 import { exec } from 'child_process';
 import path from 'path';
+import { ROLES } from '@/lib/roles';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await verifyToken(req);
-  if (!user || user.role !== 'superadmin') {
+  if (!user || user.role !== ROLES.SUPERADMIN) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

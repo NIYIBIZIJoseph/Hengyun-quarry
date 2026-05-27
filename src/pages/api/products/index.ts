@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
 import { verifyToken, hasPermission } from '@/lib/auth';
 import { enforceBranchIsolation } from '@/lib/branch';
-
+import { ROLES } from '@/lib/roles';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = verifyToken(req);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
@@ -34,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Name and category are required' });
     }
     let branchId = user.branchId;
-    if (user.role === 'superadmin' && req.body.branch_id) {
+    if (user.role === ROLES.SUPERADMIN && req.body.branch_id) {
       branchId = req.body.branch_id;
     }
     if (!branchId) return res.status(400).json({ error: 'Branch ID required' });

@@ -1,47 +1,23 @@
-// src/lib/auth-client.ts
-
-export function getAuthHeaders(): HeadersInit {
-  if (typeof window === 'undefined') {
-    return {};
-  }
+import type { Role } from './roles';
+export const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
-  const headers: Record<string, string> = {
+
+  return {
     'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  return headers;
-}
+};
 
-export function getUserRoleFromToken(): string | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
+export const getUserRoleFromToken = (): Role | null => {
+  if (typeof window === 'undefined') return null;
+
   const token = localStorage.getItem('token');
-  if (!token) {
-    return null;
-  }
+  if (!token) return null;
+
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.role || null;
+    return payload.role as Role;
   } catch {
     return null;
   }
-}
-
-export function getUserBranchIdFromToken(): number | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  const token = localStorage.getItem('token');
-  if (!token) {
-    return null;
-  }
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.branchId || null;
-  } catch {
-    return null;
-  }
-}
+};

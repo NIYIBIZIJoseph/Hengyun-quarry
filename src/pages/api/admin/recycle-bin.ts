@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
-import { verifyToken, hasPermission } from '@/lib/auth';
+import { getUserRoleFromToken } from '@/lib/auth-client';
 
 function getTable(type: string): string {
   switch (type) {
@@ -15,8 +15,12 @@ function getTable(type: string): string {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const user = verifyToken(req);
-  if (!user || !(await hasPermission(user.userId, 'recycle:view'))) {
+  const role = getUserRoleFromToken();
+
+  // ✅ SIMPLE ROLE CHECK (no permission system exists)
+  const isAllowed = role === 'superadmin' || role === 'admin';
+
+  if (!isAllowed) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -27,28 +31,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         SELECT column_name FROM information_schema.columns 
         WHERE table_name = 'workers' AND column_name IN ('name', 'full_name')
       `);
+
       const workerName = workerNameCol.rows[0]?.column_name || 'name';
 
       const tickets = await pool.query(`
         SELECT id, ticket_number as name, 'ticket' as type, deleted_at, deleted_by
         FROM support_tickets WHERE deleted_at IS NOT NULL
       `);
+
       const messages = await pool.query(`
         SELECT id, name, 'message' as type, deleted_at, deleted_by
         FROM contact_messages WHERE deleted_at IS NOT NULL
       `);
+
       const workers = await pool.query(`
         SELECT id, ${workerName} as name, 'worker' as type, deleted_at, deleted_by
         FROM workers WHERE deleted_at IS NOT NULL
       `);
+
       const attendance = await pool.query(`
         SELECT id, date::text as name, 'attendance' as type, deleted_at, deleted_by
         FROM attendance WHERE deleted_at IS NOT NULL
       `);
+
       const products = await pool.query(`
         SELECT id, name, 'product' as type, deleted_at, deleted_by
         FROM products WHERE deleted_at IS NOT NULL
       `);
+
       let orders;
       try {
         orders = await pool.query(`
@@ -61,6 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           FROM orders WHERE deleted_at IS NOT NULL
         `);
       }
+
       const all = [
         ...tickets.rows,
         ...messages.rows,
@@ -69,6 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ...products.rows,
         ...orders.rows,
       ];
+
       return res.status(200).json(all);
     } catch (err: any) {
       console.error(err);
@@ -76,17 +88,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  // POST – restore (single or bulk)
+  // POST – restore
   if (req.method === 'POST') {
-    const { action, items } = req.body; // items: [{ type, id }]
+    const { action, items } = req.body;
+
     if (action === 'bulk-restore' && Array.isArray(items)) {
       const client = await pool.connect();
+
       try {
         await client.query('BEGIN');
+
         for (const item of items) {
           const table = getTable(item.type);
-          await client.query(`UPDATE ${table} SET deleted_at = NULL, deleted_by = NULL WHERE id = $1`, [item.id]);
+          await client.query(
+            `UPDATE ${table} SET deleted_at = NULL, deleted_by = NULL WHERE id = $1`,
+            [item.id]
+          );
         }
+
         await client.query('COMMIT');
         return res.status(200).json({ success: true, restored: items.length });
       } catch (err) {
@@ -97,27 +116,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         client.release();
       }
     }
-    // Single restore (existing endpoint)
+
     if (req.query.action === 'restore') {
       const { type, id } = req.query;
       const table = getTable(type as string);
-      await pool.query(`UPDATE ${table} SET deleted_at = NULL, deleted_by = NULL WHERE id = $1`, [id]);
+
+      await pool.query(
+        `UPDATE ${table} SET deleted_at = NULL, deleted_by = NULL WHERE id = $1`,
+        [id]
+      );
+
       return res.status(200).json({ success: true });
     }
+
     return res.status(400).json({ error: 'Invalid request' });
   }
 
-  // DELETE – permanent delete (single or bulk)
+  // DELETE – permanent delete
   if (req.method === 'DELETE') {
     const { action, items } = req.body;
+
     if (action === 'bulk-permanent' && Array.isArray(items)) {
       const client = await pool.connect();
+
       try {
         await client.query('BEGIN');
+
         for (const item of items) {
           const table = getTable(item.type);
           await client.query(`DELETE FROM ${table} WHERE id = $1`, [item.id]);
         }
+
         await client.query('COMMIT');
         return res.status(200).json({ success: true, deleted: items.length });
       } catch (err) {
@@ -128,15 +157,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         client.release();
       }
     }
-    // Single permanent delete
+
     if (req.query.action === 'permanent') {
       const { type, id } = req.query;
       const table = getTable(type as string);
+
       await pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
       return res.status(200).json({ success: true });
     }
+
     return res.status(400).json({ error: 'Invalid request' });
   }
 
-  res.status(405).end();
+  return res.status(405).end();
 }

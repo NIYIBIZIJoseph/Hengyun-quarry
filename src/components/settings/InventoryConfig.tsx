@@ -3,6 +3,7 @@ import { getAuthHeaders } from '@/lib/auth-client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
+import { ROLES } from "@/lib/roles";
 
 interface Config {
   key: string;
@@ -18,7 +19,7 @@ export default function InventoryConfigSettings() {
   const [error, setError] = useState('');
 
   const userRole = typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('user') || '{}').role) : null;
-  const canEdit = userRole === 'superadmin';
+  const canEdit = userRole === ROLES.SUPERADMIN;
 
   const fetchConfigs = async () => {
     setLoading(true);

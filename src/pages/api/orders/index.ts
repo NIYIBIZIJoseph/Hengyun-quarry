@@ -1,11 +1,10 @@
-// src/pages/api/orders/index.ts
-
 import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
 import { verifyToken, hasPermission } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { enforceBranchIsolation } from '@/lib/branch';
 import { createNotification, createNotificationForAllAdmins } from '@/lib/notifications';
+import { ROLES } from '@/lib/roles';
 
 export default async function handler(
   req: NextApiRequest,
@@ -15,20 +14,17 @@ export default async function handler(
 
   try {
     user = verifyToken(req);
-  } catch (error) {
+  } catch {
     user = null;
   }
 
   // =========================================================
   // GET ORDERS
   // =========================================================
-
   if (req.method === 'GET') {
     try {
       if (!user || !(await hasPermission(user.userId, 'order:view'))) {
-        return res.status(403).json({
-          error: 'Forbidden',
-        });
+        return res.status(403).json({ error: 'Forbidden' });
       }
 
       const { whereClause, params } = enforceBranchIsolation(
@@ -41,26 +37,18 @@ export default async function handler(
         SELECT
           o.*,
           b.name AS branch_name,
-
           (
-            SELECT COUNT(*)
-            FROM order_items oi
+            SELECT COUNT(*) FROM order_items oi
             WHERE oi.order_id = o.id
           ) AS product_count,
-
           (
             SELECT string_agg(p.name, ', ')
             FROM order_items oi
-            JOIN products p
-              ON oi.product_id = p.id
+            JOIN products p ON oi.product_id = p.id
             WHERE oi.order_id = o.id
           ) AS product_names
-
         FROM orders o
-
-        LEFT JOIN branches b
-          ON o.branch_id = b.id
-
+        LEFT JOIN branches b ON o.branch_id = b.id
         WHERE o.deleted_at IS NULL
         ${whereClause}
       `;
@@ -68,14 +56,7 @@ export default async function handler(
       const queryParams: any[] = [...params];
       let idx = queryParams.length + 1;
 
-      const {
-        status,
-        payment,
-        branch,
-        search,
-        startDate,
-        endDate,
-      } = req.query;
+      const { status, payment, branch, search, startDate, endDate } = req.query;
 
       if (status && status !== 'all') {
         query += ` AND o.status = $${idx++}`;
@@ -88,7 +69,7 @@ export default async function handler(
       }
 
       if (branch && branch !== 'all') {
-        if (user.role === 'superadmin') {
+        if (user.role === ROLES.SUPERADMIN) {
           query += ` AND o.branch_id = $${idx++}`;
           queryParams.push(branch);
         }
@@ -122,51 +103,35 @@ export default async function handler(
       return res.status(200).json(result.rows);
     } catch (error) {
       console.error('GET ORDERS ERROR:', error);
-      return res.status(500).json({
-        error: 'Failed to fetch orders',
-      });
+      return res.status(500).json({ error: 'Failed to fetch orders' });
     }
   }
 
   // =========================================================
   // CREATE ORDER
   // =========================================================
-
   if (req.method === 'POST') {
     try {
-      const {
-        client_name,
-        client_phone,
-        delivery_location,
-        items,
-        notes,
-      } = req.body;
+      const { client_name, client_phone, delivery_location, items, notes } = req.body;
 
       if (!client_name) {
-        return res.status(400).json({
-          error: 'Client name is required',
-        });
+        return res.status(400).json({ error: 'Client name is required' });
       }
 
       if (!items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({
-          error: 'Order items are required',
-        });
+        return res.status(400).json({ error: 'Order items are required' });
       }
 
       const orderNumber =
-        'ORD-' +
-        Date.now() +
-        '-' +
-        Math.floor(Math.random() * 1000);
+        'ORD-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
 
       let branchId: number | null = null;
 
       if (user) {
-        if (user.role !== 'superadmin' && user.branchId) {
+        if (user.role !== ROLES.SUPERADMIN && user.branchId) {
           branchId = user.branchId;
         } else if (
-          user.role === 'superadmin' &&
+          user.role === ROLES.SUPERADMIN &&
           req.body.branch_id
         ) {
           branchId = req.body.branch_id;
@@ -189,18 +154,7 @@ export default async function handler(
           notes,
           total_amount
         )
-        VALUES
-        (
-          $1,
-          $2,
-          $3,
-          $4,
-          $5,
-          'pending',
-          'unpaid',
-          $6,
-          0
-        )
+        VALUES ($1,$2,$3,$4,$5,'pending','unpaid',$6,0)
         RETURNING *
         `,
         [
@@ -220,11 +174,7 @@ export default async function handler(
 
       for (const item of items) {
         const productRes = await pool.query(
-          `
-          SELECT id, price, name
-          FROM products
-          WHERE id = $1
-          `,
+          `SELECT id, price, name FROM products WHERE id = $1`,
           [item.product_id]
         );
 
@@ -238,81 +188,40 @@ export default async function handler(
         const quantity = Number(item.quantity);
         const unitPrice = Number(product.price);
         const subtotal = quantity * unitPrice;
+
         total += subtotal;
 
         await pool.query(
           `
           INSERT INTO order_items
-          (
-            order_id,
-            product_id,
-            quantity,
-            unit_price,
-            subtotal
-          )
-          VALUES
-          (
-            $1,
-            $2,
-            $3,
-            $4,
-            $5
-          )
+          (order_id, product_id, quantity, unit_price, subtotal)
+          VALUES ($1,$2,$3,$4,$5)
           `,
-          [
-            orderId,
-            item.product_id,
-            quantity,
-            unitPrice,
-            subtotal,
-          ]
+          [orderId, item.product_id, quantity, unitPrice, subtotal]
         );
       }
 
       await pool.query(
-        `
-        UPDATE orders
-        SET total_amount = $1
-        WHERE id = $2
-        `,
+        `UPDATE orders SET total_amount = $1 WHERE id = $2`,
         [total, orderId]
       );
 
-      // ========== ADD NOTIFICATIONS ==========
-      
       if (user) {
-        // Notify the user who created the order
         await createNotification({
           userId: user.userId,
           title: 'Order Created Successfully',
-          message: `Your order #${orderNumber} has been created. Total: ${total.toLocaleString()} RWF`,
+          message: `Order #${orderNumber} created. Total: ${total.toLocaleString()} RWF`,
           type: 'order',
           priority: 'medium',
-          link: `/dashboard/orders/${orderId}`
+          link: `/dashboard/orders/${orderId}`,
         });
-      }
 
-      // Notify all admins about new order
-      await createNotificationForAllAdmins(
-        'New Order Created',
-        `Order #${orderNumber} has been created for ${client_name}. Amount: ${total.toLocaleString()} RWF`,
-        'order',
-        'medium',
-        `/dashboard/orders/${orderId}`
-      );
-
-      if (user) {
         await logAudit({
           userId: user.userId,
           action: 'CREATE',
           targetType: 'order',
           targetId: orderId,
-          newData: {
-            orderNumber,
-            client_name,
-            total,
-            branch_id: branchId,
-          },
+          newData: { orderNumber, client_name, total, branch_id: branchId },
           ipAddress:
             (req.headers['x-forwarded-for'] as string) ||
             req.socket.remoteAddress,
@@ -320,60 +229,55 @@ export default async function handler(
         });
       }
 
+      await createNotificationForAllAdmins(
+        'New Order Created',
+        `Order #${orderNumber} created for ${client_name}. Amount: ${total.toLocaleString()} RWF`,
+        'order',
+        'medium',
+        `/dashboard/orders/${orderId}`
+      );
+
       return res.status(201).json({
         success: true,
-        order: {
-          ...order,
-          total_amount: total,
-        },
+        order: { ...order, total_amount: total },
       });
     } catch (error) {
       console.error('CREATE ORDER ERROR:', error);
-      return res.status(500).json({
-        error: 'Failed to create order',
-      });
+      return res.status(500).json({ error: 'Failed to create order' });
     }
   }
 
   // =========================================================
   // DELETE ORDER
   // =========================================================
-
   if (req.method === 'DELETE') {
     try {
       if (!user || !(await hasPermission(user.userId, 'order:delete'))) {
-        return res.status(403).json({
-          error: 'Forbidden',
-        });
+        return res.status(403).json({ error: 'Forbidden' });
       }
 
       const { id } = req.query;
 
       if (!id) {
-        return res.status(400).json({
-          error: 'Order ID required',
-        });
+        return res.status(400).json({ error: 'Order ID required' });
       }
 
-      // Get order details before deleting for notification
       const orderResult = await pool.query(
         `SELECT order_number FROM orders WHERE id = $1`,
         [id]
       );
+
       const orderNumber = orderResult.rows[0]?.order_number;
 
       await pool.query(
         `
         UPDATE orders
-        SET
-          deleted_at = NOW(),
-          deleted_by = $1
+        SET deleted_at = NOW(), deleted_by = $1
         WHERE id = $2
         `,
         [user.userId, id]
       );
 
-      // Notify admins about deletion
       if (orderNumber) {
         await createNotificationForAllAdmins(
           'Order Deleted',
@@ -395,18 +299,12 @@ export default async function handler(
         userAgent: req.headers['user-agent'],
       });
 
-      return res.status(200).json({
-        success: true,
-      });
+      return res.status(200).json({ success: true });
     } catch (error) {
       console.error('DELETE ORDER ERROR:', error);
-      return res.status(500).json({
-        error: 'Failed to delete order',
-      });
+      return res.status(500).json({ error: 'Failed to delete order' });
     }
   }
 
-  return res.status(405).json({
-    error: 'Method not allowed',
-  });
+  return res.status(405).json({ error: 'Method not allowed' });
 }

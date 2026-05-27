@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
 import { verifyToken, hasPermission } from '@/lib/auth';
+import { ROLES } from '@/lib/roles';
 
 function toLocalDateString(date: Date): string {
   const year = date.getFullYear();
@@ -56,10 +57,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Workers query with branch isolation
     let workerBranchCondition = '';
     let workerParams: (string | number)[] = [];
-    if (user.role !== 'superadmin' && user.branchId) {
+   if (user.role !== ROLES.SUPERADMIN && user.branchId) {
       workerBranchCondition = ' AND w.branch_id = $1';
       workerParams = [user.branchId];
-    } else if (user.role === 'superadmin' && req.query.branch_id) {
+    } else if (user.role === ROLES.SUPERADMIN && req.query.branch_id) {
       workerBranchCondition = ' AND w.branch_id = $1';
       workerParams = [req.query.branch_id as string];
     }
@@ -101,10 +102,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let attendanceBranchCondition = '';
     let attendanceBranchParams: (string | number)[] = [];
-    if (user.role !== 'superadmin' && user.branchId) {
+    if (user.role === ROLES.SUPERADMIN && user.branchId) {
       attendanceBranchCondition = ` AND a.branch_id = $${dateEndIdx + 1}`;
       attendanceBranchParams = [user.branchId];
-    } else if (user.role === 'superadmin' && req.query.branch_id) {
+    } else if (user.role === ROLES.SUPERADMIN && req.query.branch_id) {
       attendanceBranchCondition = ` AND a.branch_id = $${dateEndIdx + 1}`;
       attendanceBranchParams = [req.query.branch_id as string];
     }

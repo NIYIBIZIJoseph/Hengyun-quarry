@@ -1,46 +1,41 @@
-import jwt from 'jsonwebtoken';
-import type { NextApiRequest } from 'next';
-import pool from './db';
+import type { NextApiRequest } from "next";
+import jwt from "jsonwebtoken";
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'hardcoded-secret-2026';
-
-export interface AuthUser {
+export type AuthUser = {
   userId: number;
-  phone: string;
-  role: string;           // role name from 'roles' table
-  branchId: number | null;
-  forceReset?: boolean;
-}
+  role?: string;
+  branchId?: number | null;
+  permissions?: string[];
+};
 
-export function verifyToken(req: NextApiRequest): AuthUser | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
-  const token = authHeader.split(' ')[1];
+/**
+ * SINGLE SOURCE OF TRUTH: JWT verification
+ * - async (consistent with middleware design)
+ * - never throws to callers
+ * - always returns AuthUser | null
+ */
+export async function verifyToken(
+  req: NextApiRequest
+): Promise<AuthUser | null> {
   try {
-    return jwt.verify(token, JWT_SECRET) as AuthUser;
-  } catch {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) return null;
+
+    const token = authHeader.replace("Bearer ", "").trim();
+
+    if (!token) return null;
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET as string
+    ) as AuthUser;
+
+    // hard safety normalization (prevents broken tokens)
+    if (!decoded?.userId) return null;
+
+    return decoded;
+  } catch (err) {
     return null;
   }
-}
-
-export async function hasPermission(userId: number, requiredPermission: string): Promise<boolean> {
-  const client = await pool.connect();
-  try {
-    const res = await client.query(
-      `SELECT EXISTS (
-         SELECT 1 FROM users u
-         JOIN role_permissions rp ON u.role_id = rp.role_id
-         JOIN permissions p ON rp.permission_id = p.id
-         WHERE u.id = $1 AND p.name = $2 AND u.deleted_at IS NULL
-       )`,
-      [userId, requiredPermission]
-    );
-    return res.rows[0].exists;
-  } finally {
-    client.release();
-  }
-}
-
-export function hasRole(user: AuthUser | null, roles: string[]) {
-  return user && roles.includes(user.role);
 }

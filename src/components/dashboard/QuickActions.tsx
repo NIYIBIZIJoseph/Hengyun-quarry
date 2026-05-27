@@ -1,34 +1,83 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faShoppingCart, faUserPlus, faCalendarCheck, faTicketAlt } from '@fortawesome/free-solid-svg-icons';
+
+import {
+  faPlus,
+  faShoppingCart,
+  faUserPlus,
+  faCalendarCheck,
+  faTicketAlt,
+} from '@fortawesome/free-solid-svg-icons';
+
 import { getUserRoleFromToken } from '@/lib/auth-client';
 import { useTranslation } from '@/hooks/useTranslation';
+import { ROLES, Role } from '@/lib/roles';
 
 export default function QuickActions() {
   const router = useRouter();
   const { t } = useTranslation();
-  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // ✅ FIX: use Role type, not number
+  const [userRole, setUserRole] = useState<Role | null>(null);
 
   useEffect(() => {
-    setUserRole(getUserRoleFromToken());
+    const role = getUserRoleFromToken();
+
+    if (role) {
+      setUserRole(role); // ✅ NO conversion
+    }
   }, []);
 
-  const actions = [
-    { label: t('addProduct'), icon: faPlus, path: '/dashboard/products/new', roles: ['superadmin', 'admin', 'service_provider'] },
-    { label: t('createOrder'), icon: faShoppingCart, path: '/dashboard/orders/new', roles: ['superadmin', 'admin', 'service_provider'] },
-    { label: t('addWorker'), icon: faUserPlus, path: '/dashboard/workers/new', roles: ['superadmin', 'admin', 'supervisor'] },
-    { label: t('markAttendance'), icon: faCalendarCheck, path: '/dashboard/attendance/mark', roles: ['superadmin', 'admin', 'supervisor'] },
-    { label: t('openTicket'), icon: faTicketAlt, path: '/dashboard/support/new', roles: ['superadmin', 'admin', 'service_provider', 'supervisor'] },
+  const actions: {
+    label: string;
+    icon: any;
+    path: string;
+    roles: Role[];
+  }[] = [
+    {
+      label: t('addProduct'),
+      icon: faPlus,
+      path: '/dashboard/products/new',
+      roles: [ROLES.SUPERADMIN, ROLES.ADMIN],
+    },
+    {
+      label: t('createOrder'),
+      icon: faShoppingCart,
+      path: '/dashboard/orders/new',
+      roles: [ROLES.SUPERADMIN, ROLES.ADMIN],
+    },
+    {
+      label: t('addWorker'),
+      icon: faUserPlus,
+      path: '/dashboard/workers/new',
+      roles: [ROLES.SUPERADMIN, ROLES.ADMIN],
+    },
+    {
+      label: t('markAttendance'),
+      icon: faCalendarCheck,
+      path: '/dashboard/attendance/mark',
+      roles: [ROLES.SUPERADMIN, ROLES.ADMIN],
+    },
+    {
+      label: t('openTicket'),
+      icon: faTicketAlt,
+      path: '/dashboard/support/new',
+      roles: [ROLES.SUPERADMIN, ROLES.ADMIN],
+    },
   ];
 
-  const visibleActions = actions.filter(action => userRole && action.roles.includes(userRole));
+  // ✅ clean filtering
+  const visibleActions = actions.filter(
+    (action) => userRole && action.roles.includes(userRole)
+  );
 
-  if (visibleActions.length === 0) return null;
+  if (!visibleActions.length) return null;
 
   return (
     <div style={{ marginBottom: '2rem' }}>
       <h2 style={{ marginBottom: '1rem' }}>{t('quickActions')}</h2>
+
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         {visibleActions.map((action, idx) => (
           <button
@@ -47,7 +96,8 @@ export default function QuickActions() {
               color: '#1f2937',
             }}
           >
-            <FontAwesomeIcon icon={action.icon} /> {action.label}
+            <FontAwesomeIcon icon={action.icon} />
+            {action.label}
           </button>
         ))}
       </div>
