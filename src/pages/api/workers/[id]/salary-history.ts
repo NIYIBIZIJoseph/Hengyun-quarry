@@ -1,48 +1,69 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+
 import pool from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const user = verifyToken(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+import { withAuth } from '@/lib/middleware/withAuth';
+import { hasPermission } from '@/lib/permissions';
 
-  const { id } = req.query;
-  if (!id || isNaN(Number(id))) {
-    return res.status(400).json({ message: 'Invalid worker ID' });
-  }
+export default withAuth(
+  async (req: NextApiRequest, res: NextApiResponse, user: any) => {
 
-  if (req.method === 'GET') {
-    try {
+    const { id } = req.query;
+
+    if (!id || Array.isArray(id) || isNaN(Number(id))) {
+      return res.status(400).json({ error: 'Invalid worker ID' });
+    }
+
+    const workerId = Number(id);
+
+    // ================= GET =================
+    if (req.method === 'GET') {
+
+      const allowed = await hasPermission(user.userId, 'worker:view');
+      if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
       const result = await pool.query(
-        'SELECT * FROM salary_history WHERE worker_id = $1 ORDER BY effective_date DESC',
-        [id]
+        `SELECT * FROM salary_history WHERE worker_id = $1 ORDER BY effective_date DESC`,
+        [workerId]
       );
+
       return res.status(200).json(result.rows);
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: 'Failed to fetch salary history' });
     }
-  }
 
-  if (req.method === 'POST') {
-    const { old_salary, new_salary, effective_date, reason } = req.body;
-    if (!new_salary || !effective_date) {
-      return res.status(400).json({ message: 'New salary and effective date required' });
-    }
-    try {
+    // ================= POST =================
+    if (req.method === 'POST') {
+
+      const allowed = await hasPermission(user.userId, 'worker:edit');
+      if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
+      const {
+        old_salary,
+        new_salary,
+        effective_date,
+        reason,
+      } = req.body;
+
+      if (!new_salary || !effective_date) {
+        return res.status(400).json({ error: 'Missing fields' });
+      }
+
       await pool.query(
-        `INSERT INTO salary_history (worker_id, old_salary, new_salary, effective_date, reason)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [id, old_salary || null, new_salary, effective_date, reason || null]
+        `
+        INSERT INTO salary_history
+        (worker_id, old_salary, new_salary, effective_date, reason)
+        VALUES ($1,$2,$3,$4,$5)
+        `,
+        [workerId, old_salary || null, new_salary, effective_date, reason || null]
       );
-      await pool.query('UPDATE workers SET salary = $1 WHERE id = $2', [new_salary, id]);
-      return res.status(201).json({ message: 'Salary history added' });
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: 'Failed to add salary history' });
-    }
-  }
 
-  res.setHeader('Allow', ['GET', 'POST']);
-  res.status(405).end(`Method ${req.method} Not Allowed`);
-}
+      await pool.query(
+        `UPDATE workers SET salary = $1 WHERE id = $2`,
+        [new_salary, workerId]
+      );
+
+      return res.status(201).json({ success: true });
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+);

@@ -1,173 +1,219 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import pool from '@/lib/db';
-import { getUserRoleFromToken } from '@/lib/auth-client';
+import type { NextApiRequest, NextApiResponse } from "next";
+import pool from "@/lib/db";
+
+import { withAuth } from "@/lib/middleware/withAuth";
+import { hasPermission } from "@/lib/permissions";
+import { logAudit } from "@/lib/audit";
+import { AuthUser } from "@/lib/auth";
 
 function getTable(type: string): string {
   switch (type) {
-    case 'ticket': return 'support_tickets';
-    case 'message': return 'contact_messages';
-    case 'worker': return 'workers';
-    case 'attendance': return 'attendance';
-    case 'product': return 'products';
-    case 'order': return 'orders';
-    default: throw new Error('Invalid type');
+    case "ticket":
+      return "support_tickets";
+    case "message":
+      return "contact_messages";
+    case "worker":
+      return "workers";
+    case "attendance":
+      return "attendance";
+    case "product":
+      return "products";
+    case "order":
+      return "orders";
+    default:
+      throw new Error("Invalid type");
   }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const role = getUserRoleFromToken();
+export default withAuth(async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+  user: AuthUser
+) => {
 
-  // ✅ SIMPLE ROLE CHECK (no permission system exists)
-  const isAllowed = role === 'superadmin' || role === 'admin';
+  // =====================================================
+  // GET RECYCLE BIN ITEMS
+  // =====================================================
+  if (req.method === "GET") {
 
-  if (!isAllowed) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+    const allowed = await hasPermission(user.userId, "recycle:view");
+    if (!allowed) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
 
-  // GET – list all deleted items
-  if (req.method === 'GET') {
     try {
-      const workerNameCol = await pool.query(`
-        SELECT column_name FROM information_schema.columns 
-        WHERE table_name = 'workers' AND column_name IN ('name', 'full_name')
-      `);
-
-      const workerName = workerNameCol.rows[0]?.column_name || 'name';
-
-      const tickets = await pool.query(`
-        SELECT id, ticket_number as name, 'ticket' as type, deleted_at, deleted_by
+      const result = await pool.query(`
+        SELECT
+          id,
+          'ticket' as type,
+          deleted_at,
+          deleted_by
         FROM support_tickets WHERE deleted_at IS NOT NULL
-      `);
 
-      const messages = await pool.query(`
-        SELECT id, name, 'message' as type, deleted_at, deleted_by
+        UNION ALL
+
+        SELECT
+          id,
+          'message' as type,
+          deleted_at,
+          deleted_by
         FROM contact_messages WHERE deleted_at IS NOT NULL
-      `);
 
-      const workers = await pool.query(`
-        SELECT id, ${workerName} as name, 'worker' as type, deleted_at, deleted_by
+        UNION ALL
+
+        SELECT
+          id,
+          'worker' as type,
+          deleted_at,
+          deleted_by
         FROM workers WHERE deleted_at IS NOT NULL
-      `);
 
-      const attendance = await pool.query(`
-        SELECT id, date::text as name, 'attendance' as type, deleted_at, deleted_by
+        UNION ALL
+
+        SELECT
+          id,
+          'attendance' as type,
+          deleted_at,
+          deleted_by
         FROM attendance WHERE deleted_at IS NOT NULL
-      `);
 
-      const products = await pool.query(`
-        SELECT id, name, 'product' as type, deleted_at, deleted_by
+        UNION ALL
+
+        SELECT
+          id,
+          'product' as type,
+          deleted_at,
+          deleted_by
         FROM products WHERE deleted_at IS NOT NULL
+
+        UNION ALL
+
+        SELECT
+          id,
+          'order' as type,
+          deleted_at,
+          deleted_by
+        FROM orders WHERE deleted_at IS NOT NULL
+
+        ORDER BY deleted_at DESC
       `);
 
-      let orders;
-      try {
-        orders = await pool.query(`
-          SELECT id, COALESCE(order_number, id::text) as name, 'order' as type, deleted_at, deleted_by
-          FROM orders WHERE deleted_at IS NOT NULL
-        `);
-      } catch {
-        orders = await pool.query(`
-          SELECT id, id::text as name, 'order' as type, deleted_at, deleted_by
-          FROM orders WHERE deleted_at IS NOT NULL
-        `);
-      }
+      return res.status(200).json(result.rows);
 
-      const all = [
-        ...tickets.rows,
-        ...messages.rows,
-        ...workers.rows,
-        ...attendance.rows,
-        ...products.rows,
-        ...orders.rows,
-      ];
-
-      return res.status(200).json(all);
     } catch (err: any) {
-      console.error(err);
-      return res.status(500).json({ error: err.message });
+      console.error("RECYCLE BIN ERROR:", err);
+      return res.status(500).json({ error: "Failed to fetch recycle bin" });
     }
   }
 
-  // POST – restore
-  if (req.method === 'POST') {
-    const { action, items } = req.body;
+  // =====================================================
+  // RESTORE ITEM
+  // =====================================================
+  if (req.method === "POST") {
 
-    if (action === 'bulk-restore' && Array.isArray(items)) {
-      const client = await pool.connect();
-
-      try {
-        await client.query('BEGIN');
-
-        for (const item of items) {
-          const table = getTable(item.type);
-          await client.query(
-            `UPDATE ${table} SET deleted_at = NULL, deleted_by = NULL WHERE id = $1`,
-            [item.id]
-          );
-        }
-
-        await client.query('COMMIT');
-        return res.status(200).json({ success: true, restored: items.length });
-      } catch (err) {
-        await client.query('ROLLBACK');
-        console.error(err);
-        return res.status(500).json({ error: 'Bulk restore failed' });
-      } finally {
-        client.release();
-      }
+    const allowed = await hasPermission(user.userId, "recycle:restore");
+    if (!allowed) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
-    if (req.query.action === 'restore') {
-      const { type, id } = req.query;
-      const table = getTable(type as string);
+    const { type, id } = req.body;
 
-      await pool.query(
-        `UPDATE ${table} SET deleted_at = NULL, deleted_by = NULL WHERE id = $1`,
+    if (!type || !id) {
+      return res.status(400).json({ error: "Type and ID required" });
+    }
+
+    const table = getTable(type);
+
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      await client.query(
+        `
+        UPDATE ${table}
+        SET deleted_at = NULL,
+            deleted_by = NULL
+        WHERE id = $1
+        `,
         [id]
       );
 
-      return res.status(200).json({ success: true });
-    }
+      await logAudit({
+        userId: user.userId,
+        action: "RESTORE",
+        targetType: type,
+        targetId: id,
+        ipAddress:
+          (req.headers["x-forwarded-for"] as string) ||
+          req.socket.remoteAddress,
+        userAgent: req.headers["user-agent"],
+      });
 
-    return res.status(400).json({ error: 'Invalid request' });
+      await client.query("COMMIT");
+
+      return res.status(200).json({ success: true });
+
+    } catch (err) {
+      await client.query("ROLLBACK");
+      return res.status(500).json({ error: "Restore failed" });
+
+    } finally {
+      client.release();
+    }
   }
 
-  // DELETE – permanent delete
-  if (req.method === 'DELETE') {
-    const { action, items } = req.body;
+  // =====================================================
+  // PERMANENT DELETE
+  // =====================================================
+  if (req.method === "DELETE") {
 
-    if (action === 'bulk-permanent' && Array.isArray(items)) {
-      const client = await pool.connect();
-
-      try {
-        await client.query('BEGIN');
-
-        for (const item of items) {
-          const table = getTable(item.type);
-          await client.query(`DELETE FROM ${table} WHERE id = $1`, [item.id]);
-        }
-
-        await client.query('COMMIT');
-        return res.status(200).json({ success: true, deleted: items.length });
-      } catch (err) {
-        await client.query('ROLLBACK');
-        console.error(err);
-        return res.status(500).json({ error: 'Bulk permanent delete failed' });
-      } finally {
-        client.release();
-      }
+    const allowed = await hasPermission(user.userId, "recycle:delete");
+    if (!allowed) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
-    if (req.query.action === 'permanent') {
-      const { type, id } = req.query;
-      const table = getTable(type as string);
+    const { type, id } = req.body;
 
-      await pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
+    if (!type || !id) {
+      return res.status(400).json({ error: "Type and ID required" });
+    }
+
+    const table = getTable(type);
+
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      await client.query(
+        `DELETE FROM ${table} WHERE id = $1`,
+        [id]
+      );
+
+      await logAudit({
+        userId: user.userId,
+        action: "PERMANENT_DELETE",
+        targetType: type,
+        targetId: id,
+        ipAddress:
+          (req.headers["x-forwarded-for"] as string) ||
+          req.socket.remoteAddress,
+        userAgent: req.headers["user-agent"],
+      });
+
+      await client.query("COMMIT");
+
       return res.status(200).json({ success: true });
-    }
 
-    return res.status(400).json({ error: 'Invalid request' });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      return res.status(500).json({ error: "Delete failed" });
+
+    } finally {
+      client.release();
+    }
   }
 
-  return res.status(405).end();
-}
+  return res.status(405).json({ error: "Method not allowed" });
+});

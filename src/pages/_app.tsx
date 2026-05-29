@@ -3,7 +3,7 @@ import type { AppProps } from 'next/app';
 import BackToTop from '@/components/BackToTop';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { getAuthHeaders, getUserRoleFromToken } from '@/lib/auth-client';
-import { ROLES } from '@/lib/roles';
+import { ROLES } from '@/lib/roles';  // ← CHANGE THIS LINE
 import '../styles/globals.css';
 import '../styles/tokens.css';
 import '../styles/header.css';

@@ -1,20 +1,23 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import pool from '@/lib/db';
-import { verifyToken, hasPermission } from '@/lib/auth';
+import type { NextApiRequest, NextApiResponse } from "next";
+import pool from "@/lib/db";
+import { withAuth } from "@/lib/middleware/withAuth";
+import { hasPermission } from "@/lib/permissions";
+import { ROLES } from "@/lib/roles";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') return res.status(405).end();
+export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) => {
 
-  const user = verifyToken(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  if (!(await hasPermission(user.userId, 'dashboard:view'))) {
-    return res.status(403).json({ error: 'Forbidden' });
+  if (req.method !== "GET") {
+    return res.status(405).end();
   }
 
-  let branchFilter = '';
+  const allowed = await hasPermission(user.userId, "dashboard:view");
+  if (!allowed) return res.status(403).json({ error: "Forbidden" });
+
+  let branchFilter = "";
   let branchParams: any[] = [];
-  if (user.role !== 1 && user.branchId) {
-    branchFilter = ' AND o.branch_id = $1';
+
+  if (user.role !== ROLES.SUPERADMIN && user.branchId) {
+    branchFilter = " AND o.branch_id = $1";
     branchParams = [user.branchId];
   }
 
@@ -30,21 +33,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     GROUP BY DATE(o.created_at)
     ORDER BY date ASC
   `;
+
   const result = await pool.query(query, branchParams);
 
-  // Fill missing days
   const today = new Date();
   const map: Record<string, number> = {};
+
   for (const row of result.rows) {
-    const dateStr = row.date.toISOString().split('T')[0];
-    map[dateStr] = Number(row.total);
+    const key = new Date(row.date).toISOString().split("T")[0];
+    map[key] = Number(row.total);
   }
+
   const data = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(today.getDate() - i);
-    const key = d.toISOString().split('T')[0];
+    const key = d.toISOString().split("T")[0];
     data.push({ date: key, total: map[key] || 0 });
   }
-  res.status(200).json(data);
-}
+
+  return res.status(200).json(data);
+});

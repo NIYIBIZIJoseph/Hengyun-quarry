@@ -5,15 +5,11 @@ type Handler = (
   req: NextApiRequest,
   res: NextApiResponse,
   user: AuthUser
-) => Promise<void> | void;
+) => Promise<any> | any;
 
-/**
- * CENTRAL AUTH WRAPPER
- * Replaces manual verifyToken in all routes
- */
 export function withAuth(handler: Handler) {
   return async (req: NextApiRequest, res: NextApiResponse) => {
-    const user = await verifyToken(req);
+    const user = verifyToken(req);
 
     if (!user) {
       return res.status(401).json({ error: "Unauthorized" });

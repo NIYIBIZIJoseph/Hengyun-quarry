@@ -1,31 +1,21 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
-import { verifyToken, hasPermission } from '@/lib/auth';
-import { ROLES } from '@/lib/roles';
+import { withAuth } from "@/lib/middleware/withAuth";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) => {
   if (req.method !== 'GET') return res.status(405).end();
 
-  const user = verifyToken(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  if (!(await hasPermission(user.userId, 'dashboard:view'))) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-
-  let branchFilter = '';
-  let branchParams: any[] = [];
-  if (user.role !== ROLES.SUPERADMIN && user.branchId) {
-    branchFilter = ' AND branch_id = $1';
-    branchParams = [user.branchId];
-  }
-
   const result = await pool.query(`
-    SELECT status, COUNT(*) as count
-    FROM orders
-    WHERE deleted_at IS NULL
-      ${branchFilter}
-    GROUP BY status
-  `, branchParams);
+    SELECT p.name, SUM(oi.quantity) as total_sold
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.id
+    JOIN products p ON oi.product_id = p.id
+    WHERE o.created_at > NOW() - INTERVAL '30 days'
+      AND o.deleted_at IS NULL
+    GROUP BY p.id, p.name
+    ORDER BY total_sold DESC
+    LIMIT 5
+  `);
 
-  res.status(200).json(result.rows);
-}
+  return res.status(200).json(result.rows);
+});

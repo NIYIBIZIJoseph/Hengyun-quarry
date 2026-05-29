@@ -1,23 +1,26 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import pool from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import type { NextApiRequest, NextApiResponse } from "next";
+import pool from "@/lib/db";
+import { withAuth } from "@/lib/middleware/withAuth";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const user = verifyToken(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) => {
 
-  let dbStatus = 'ok';
-  try {
-    await pool.query('SELECT 1');
-  } catch {
-    dbStatus = 'error';
+  if (req.method !== "GET") {
+    return res.status(405).end();
   }
 
-  res.status(200).json({
+  let dbStatus = "ok";
+
+  try {
+    await pool.query("SELECT 1");
+  } catch {
+    dbStatus = "error";
+  }
+
+  return res.status(200).json({
     database: dbStatus,
-    api: 'ok',
+    api: "ok",
     timestamp: new Date().toISOString(),
     authenticated: true,
-    userRole: user.role
+    userRole: user.role,
   });
-}
+});

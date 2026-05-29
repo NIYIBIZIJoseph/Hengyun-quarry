@@ -1,27 +1,29 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { withAuth } from "@/lib/middleware/withAuth";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) => {
 
-  const user = verifyToken(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   try {
-    // Get notifications for the logged-in user only
     const result = await pool.query(
-      `SELECT id, title, message, type, is_read, created_at, link, priority
-       FROM notifications 
-       WHERE user_id = $1 
-       ORDER BY created_at DESC 
-       LIMIT 50`,
+      `
+      SELECT id, title, message, type, is_read, created_at, link, priority
+      FROM notifications
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT 50
+      `,
       [user.userId]
     );
-    
-    res.status(200).json(result.rows);
+
+    return res.status(200).json(result.rows);
+
   } catch (error) {
     console.error('Error fetching notifications:', error);
-    res.status(200).json([]);
+    return res.status(500).json({ error: 'Failed to fetch notifications' });
   }
-}
+});

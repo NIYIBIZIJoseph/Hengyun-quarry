@@ -1,4 +1,4 @@
-import { AuthUser } from './auth-types';
+import type { AuthUser } from "@/lib/auth";
 import { ROLES } from './roles';
 
 export interface BranchFilter {

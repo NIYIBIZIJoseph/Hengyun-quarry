@@ -1,32 +1,25 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { withAuth } from "@/lib/middleware/withAuth";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const user = await verifyToken(req);
+export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) => {
 
-  if (!user) {
-    return res.status(401).json({ success: false, error: 'Unauthorized' });
-  }
+  if (req.method !== 'GET') return res.status(405).end();
 
   try {
     const result = await pool.query(`
-      SELECT p.name, SUM(o.quantity) as total_sold
-      FROM orders o
-      JOIN products p ON o.product_id = p.id
-      WHERE o.created_at > NOW() - INTERVAL '30 days'
-      GROUP BY p.id, p.name
-      ORDER BY total_sold DESC
-      LIMIT 5
-    `);
+      SELECT action, COUNT(*) as count
+      FROM audit_logs
+      WHERE user_id = $1
+      GROUP BY action
+      ORDER BY count DESC
+      LIMIT 10
+    `, [user.userId]);
 
-    return res.status(200).json({
-      success: true,
-      data: result.rows
-    });
+    return res.status(200).json(result.rows);
 
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ success: false, error: 'Failed to fetch top products' });
+    return res.status(500).json({ error: 'Failed to fetch trends' });
   }
-}
+});

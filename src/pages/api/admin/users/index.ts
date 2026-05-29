@@ -1,121 +1,111 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import pool from "@/lib/db";
 import bcrypt from "bcrypt";
-import { requireAuth } from "@/lib/middleware/requireAuth";
-import { requirePermission } from "@/lib/middleware/requirePermission";
-import { logAudit } from "@/lib/audit";
+
+import { withAuth } from "@/lib/middleware/withAuth";
+import { hasPermission } from "@/lib/permissions";
 import { ROLES } from "@/lib/roles";
+import { logAudit } from "@/lib/audit";
+import { AuthUser } from "@/lib/auth";
 
-export default requireAuth(
-  requirePermission("user:access", async (req: NextApiRequest, res: NextApiResponse, user) => {
+export default withAuth(async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+  user: AuthUser
+) => {
 
-    // ========== GET ==========
-    if (req.method === "GET") {
-      const { status, role, search, branchId } = req.query;
+  // ================= GET USERS =================
+  if (req.method === "GET") {
 
-      let query = `
-        SELECT u.id, u.phone, u.full_name, u.role_id, r.name as role,
-               u.status, u.created_at, u.suspended_until,
-               u.branch_id, b.name as branch_name, u.force_password_reset
-        FROM users u
-        LEFT JOIN branches b ON u.branch_id = b.id
-        LEFT JOIN roles r ON u.role_id = r.id
-        WHERE u.deleted_at IS NULL
-      `;
-
-      const params: any[] = [];
-      let idx = 1;
-
-      // Branch isolation (still valid business logic)
-      if (user.role !== ROLES.SUPERADMIN) {
-        query += ` AND (u.branch_id = $${idx} OR u.branch_id IS NULL)`;
-        params.push(user.branchId ?? null);
-        idx++;
-      } else if (branchId && branchId !== "all") {
-        query += ` AND u.branch_id = $${idx}`;
-        params.push(branchId);
-        idx++;
-      }
-
-      if (status && status !== "all") {
-        query += ` AND u.status = $${idx++}`;
-        params.push(status);
-      }
-
-      if (role && role !== "all") {
-        query += ` AND r.name = $${idx++}`;
-        params.push(role);
-      }
-
-      if (search) {
-        query += ` AND (u.full_name ILIKE $${idx} OR u.phone ILIKE $${idx})`;
-        params.push(`%${search}%`);
-        idx++;
-      }
-
-      query += " ORDER BY u.created_at DESC";
-
-      const result = await pool.query(query, params);
-      return res.status(200).json(result.rows);
+    const allowed = await hasPermission(user.userId, "user:view");
+    if (!allowed) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
-    // ========== POST ==========
-    if (req.method === "POST") {
-      const { phone, password, full_name, role, branch_id } = req.body;
+    const { status, role, search } = req.query;
 
-      if (!phone || !password || !full_name || !role) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
+    let query = `
+      SELECT u.id, u.phone, u.full_name,
+             r.name as role, u.status,
+             u.created_at, u.branch_id
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      WHERE u.deleted_at IS NULL
+    `;
 
-      const roleRes = await pool.query("SELECT id FROM roles WHERE name = $1", [role]);
+    const params: any[] = [];
+    let i = 1;
 
-      if (roleRes.rows.length === 0) {
-        return res.status(400).json({ error: `Role '${role}' does not exist` });
-      }
-
-      const roleId = roleRes.rows[0].id;
-
-      let targetBranch: number | null = branch_id ? parseInt(branch_id) : null;
-
-      if (user.role !== ROLES.SUPERADMIN) {
-        targetBranch = user.branchId ?? null;
-      }
-
-      try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const result = await pool.query(
-          `INSERT INTO users (phone, password, full_name, role_id, branch_id, status, force_password_reset)
-           VALUES ($1, $2, $3, $4, $5, 'active', true)
-           RETURNING id, phone, full_name`,
-          [phone, hashedPassword, full_name, roleId, targetBranch]
-        );
-
-        const newUser = result.rows[0];
-
-        await logAudit({
-          userId: user.userId,
-          action: "CREATE",
-          targetType: "user",
-          targetId: newUser.id,
-          newData: { phone, full_name, role, branch_id: targetBranch },
-          ipAddress:
-            (req.headers["x-forwarded-for"] as string) ||
-            req.socket.remoteAddress,
-          userAgent: req.headers["user-agent"],
-        });
-
-        return res.status(201).json(newUser);
-      } catch (err: any) {
-        if (err.code === "23505") {
-          return res.status(409).json({ error: "Phone number already exists" });
-        }
-
-        console.error(err);
-        return res.status(500).json({ error: "Failed to create user" });
-      }
+    if (user.role !== ROLES.SUPERADMIN) {
+      query += ` AND u.branch_id = $${i}`;
+      params.push(user.branchId);
+      i++;
     }
 
-    return res.status(405).json({ error: "Method not allowed" });
-  })
-);
+    if (status && status !== "all") {
+      query += ` AND u.status = $${i++}`;
+      params.push(status);
+    }
+
+    if (role && role !== "all") {
+      query += ` AND r.name = $${i++}`;
+      params.push(role);
+    }
+
+    if (search) {
+      query += ` AND (u.full_name ILIKE $${i} OR u.phone ILIKE $${i})`;
+      params.push(`%${search}%`);
+      i++;
+    }
+
+    query += ` ORDER BY u.created_at DESC`;
+
+    const result = await pool.query(query, params);
+    return res.status(200).json(result.rows);
+  }
+
+  // ================= CREATE USER =================
+  if (req.method === "POST") {
+
+    const allowed = await hasPermission(user.userId, "user:create");
+    if (!allowed) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const { phone, password, full_name, role, branch_id } = req.body;
+
+    const roleRes = await pool.query(
+      "SELECT id FROM roles WHERE name = $1",
+      [role]
+    );
+
+    if (!roleRes.rows.length) {
+      return res.status(400).json({ error: "Invalid role" });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const result = await pool.query(
+      `
+      INSERT INTO users (phone, password, full_name, role_id, branch_id, status, force_password_reset)
+      VALUES ($1,$2,$3,$4,$5,'active',true)
+      RETURNING id, phone, full_name
+      `,
+      [phone, hashed, full_name, roleRes.rows[0].id, branch_id ?? null]
+    );
+
+    await logAudit({
+      userId: user.userId,
+      action: "CREATE_USER",
+      targetType: "user",
+      targetId: result.rows[0].id,
+      newData: { phone, full_name, role },
+      ipAddress: req.headers["x-forwarded-for"] as string,
+      userAgent: req.headers["user-agent"],
+    });
+
+    return res.status(201).json(result.rows[0]);
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+});

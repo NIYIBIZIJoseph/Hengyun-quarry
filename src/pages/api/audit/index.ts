@@ -1,14 +1,16 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import pool from '@/lib/db';
-import { verifyToken, hasPermission } from '@/lib/auth';
+import type { NextApiRequest, NextApiResponse } from "next";
+import pool from "@/lib/db";
+import { withAuth } from "@/lib/middleware/withAuth";
+import { hasPermission } from "@/lib/permissions";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') return res.status(405).end();
+export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) => {
 
-  const user = verifyToken(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  if (!(await hasPermission(user.userId, 'audit:view'))) {
-    return res.status(403).json({ error: 'Forbidden' });
+  if (req.method !== "GET") {
+    return res.status(405).end();
+  }
+
+  if (!(await hasPermission(user.userId, "audit:view"))) {
+    return res.status(403).json({ error: "Forbidden" });
   }
 
   const page = parseInt(req.query.page as string) || 1;
@@ -16,14 +18,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const offset = (page - 1) * limit;
 
   const result = await pool.query(
-    `SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+    `
+    SELECT *
+    FROM audit_logs
+    ORDER BY created_at DESC
+    LIMIT $1 OFFSET $2
+    `,
     [limit, offset]
   );
-  const countRes = await pool.query('SELECT COUNT(*) FROM audit_logs');
+
+  const countRes = await pool.query(
+    `SELECT COUNT(*) FROM audit_logs`
+  );
+
   const total = parseInt(countRes.rows[0].count);
 
-  res.status(200).json({
+  return res.status(200).json({
     data: result.rows,
-    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
   });
-}
+});

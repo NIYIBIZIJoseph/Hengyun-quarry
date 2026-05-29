@@ -11,7 +11,7 @@ import {
 
 import { useTranslation } from '@/hooks/useTranslation';
 import { ROLES } from '@/lib/roles';
-
+import AccountSettings from '@/components/settings/AccountSettings';
 import RolesPermissions from '@/components/settings/RolesPermissions';
 import OrganizationSettings from '@/components/settings/OrganizationSettings';
 import AttendanceRules from '@/components/settings/AttendanceRules';
@@ -26,21 +26,17 @@ import AdminControlsSettings from '@/components/settings/AdminControls';
 import TeamManagementSettings from '@/components/settings/TeamManagementSettings';
 import AuditLogs from '@/components/settings/AuditLogs';
 
-function AccountSettings() {
-  return <div>Account Settings</div>;
-}
-
 export default function SettingsPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const { tab } = router.query;
 
   const [activeTab, setActiveTab] = useState('account');
-  const [userRole, setUserRole] = useState<number | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const role = getUserRoleFromToken();
-    setUserRole(role ? Number(role) : null);
+    setUserRole(role || null);
   }, []);
 
   const tabs = [
@@ -61,7 +57,7 @@ export default function SettingsPage() {
   ];
 
   const visibleTabs = tabs.filter(
-    (t) => userRole !== null && t.roles.includes(userRole)
+    (t) => userRole !== null && t.roles.includes(userRole as any)
   );
 
   useEffect(() => {
@@ -78,7 +74,7 @@ export default function SettingsPage() {
     }
 
     setActiveTab(target);
-  }, [userRole, tab]);
+  }, [userRole, tab, visibleTabs, activeTab]);
 
   const renderTab = () => {
     switch (activeTab) {
@@ -101,7 +97,7 @@ export default function SettingsPage() {
     }
   };
 
-  if (!userRole) {
+  if (userRole === null) {
     return <DashboardLayout>Loading...</DashboardLayout>;
   }
 
@@ -110,16 +106,16 @@ export default function SettingsPage() {
       <h1>{t('settings') || 'Settings'}</h1>
 
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        {visibleTabs.map((t) => (
+        {visibleTabs.map((tabItem) => (
           <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
+            key={tabItem.id}
+            onClick={() => setActiveTab(tabItem.id)}
             style={{
-              borderBottom: activeTab === t.id ? '2px solid #f59e0b' : 'none',
-              fontWeight: activeTab === t.id ? 'bold' : 'normal',
+              borderBottom: activeTab === tabItem.id ? '2px solid #f59e0b' : 'none',
+              fontWeight: activeTab === tabItem.id ? 'bold' : 'normal',
             }}
           >
-            <FontAwesomeIcon icon={t.icon} /> {t.label}
+            <FontAwesomeIcon icon={tabItem.icon} /> {tabItem.label}
           </button>
         ))}
       </div>

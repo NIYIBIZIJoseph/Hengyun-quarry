@@ -1,29 +1,48 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import pool from '@/lib/db';
-import { verifyToken, hasPermission } from '@/lib/auth';
-import os from 'os';
+import type { NextApiRequest, NextApiResponse } from "next";
+import pool from "@/lib/db";
+import os from "os";
+import { requireAuth } from "@/lib/middleware/requireAuth";
+import { hasPermission } from "@/lib/permissions";
+import { ROLES } from "@/lib/roles";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const user = verifyToken(req);
-  if (!user || !(await hasPermission(user.userId, 'admin:controls'))) {
-    return res.status(403).json({ error: 'Forbidden' });
+export default requireAuth(async (req: NextApiRequest, res: NextApiResponse, user) => {
+
+  // ================= METHOD GUARD =================
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  // ================= PERMISSION CHECK =================
+  const allowed =
+    user.role === ROLES.SUPERADMIN ||
+    (await hasPermission(user.userId, "admin:controls"));
+
+  if (!allowed) {
+    return res.status(403).json({ error: "Forbidden" });
   }
 
   try {
-    const dbVersionRes = await pool.query('SELECT version()');
-    const dbVersion = dbVersionRes.rows[0].version;
+
+    const dbVersionRes = await pool.query(`SELECT version()`);
+    const dbVersion = dbVersionRes.rows[0]?.version;
+
     const info = {
       nodeVersion: process.version,
       platform: os.platform(),
-      arch: os.arch(),
+      architecture: os.arch(),
       uptime: process.uptime(),
       memoryUsage: process.memoryUsage(),
-      dbVersion,
-      environment: process.env.NODE_ENV || 'development',
+      databaseVersion: dbVersion,
+      environment: process.env.NODE_ENV || "development",
     };
-    res.status(200).json(info);
+
+    return res.status(200).json(info);
+
   } catch (err: any) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.error("SYSTEM INFO ERROR:", err);
+
+    return res.status(500).json({
+      error: "Failed to fetch system info",
+    });
   }
-}
+});

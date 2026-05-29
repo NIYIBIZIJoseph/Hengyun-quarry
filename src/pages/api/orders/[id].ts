@@ -1,78 +1,139 @@
-// src/pages/api/orders/[id].ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
-import { verifyToken, hasPermission } from '@/lib/auth';
-import { enforceBranchIsolation } from '@/lib/branch';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const user = verifyToken(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+import { withAuth } from "@/lib/middleware/withAuth";
+import { hasPermission } from "@/lib/permissions";
+import { enforceBranchIsolation } from "@/lib/branch";
+import { logAudit } from "@/lib/audit";
+
+export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) => {
 
   const { id } = req.query;
-  const orderId = parseInt(id as string);
-  if (isNaN(orderId)) return res.status(400).json({ error: 'Invalid order ID' });
+  const orderId = Number(id);
 
-  // Branch isolation check
-  const { whereClause, params: branchParams } = enforceBranchIsolation(user, 'o', 'branch_id');
-  const checkQuery = `
-    SELECT o.* FROM orders o
-    WHERE o.id = $${branchParams.length + 1}
+  if (!orderId) {
+    return res.status(400).json({ error: 'Invalid order ID' });
+  }
+
+  // ================= BRANCH CHECK =================
+  const { whereClause, params } =
+    enforceBranchIsolation(user, 'o', 'branch_id');
+
+  const check = await pool.query(
+    `
+    SELECT o.*
+    FROM orders o
+    WHERE o.id = $${params.length + 1}
       AND o.deleted_at IS NULL
       ${whereClause}
-  `;
-  const checkRes = await pool.query(checkQuery, [...branchParams, orderId]);
-  if (checkRes.rows.length === 0) {
-    return res.status(404).json({ error: 'Order not found or access denied' });
-  }
-  const existingOrder = checkRes.rows[0];
+    `,
+    [...params, orderId]
+  );
 
-  // ========== GET ==========
+  if (!check.rows.length) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+
+  const existingOrder = check.rows[0];
+
+  // ================= GET ORDER =================
   if (req.method === 'GET') {
-    if (!(await hasPermission(user.userId, 'order:view'))) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    const itemsRes = await pool.query(
-      `SELECT oi.*, p.name as product_name
-       FROM order_items oi
-       LEFT JOIN products p ON oi.product_id = p.id
-       WHERE oi.order_id = $1`,
+
+    const allowed = await hasPermission(user.userId, 'order:view');
+    if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
+    const items = await pool.query(
+      `SELECT * FROM order_items WHERE order_id = $1`,
       [orderId]
     );
-    return res.status(200).json({ ...existingOrder, items: itemsRes.rows });
+
+    return res.status(200).json({
+      ...existingOrder,
+      items: items.rows,
+    });
   }
 
-  // ========== PUT (update status, payment, etc.) ==========
+  // ================= UPDATE ORDER =================
   if (req.method === 'PUT') {
-    if (!(await hasPermission(user.userId, 'order:edit'))) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    const { status, payment_status, assigned_worker_id, notes, delivery_date } = req.body;
-    const updates: string[] = [];
-    const values: any[] = [];
-    let idx = 1;
 
-    if (status !== undefined) { updates.push(`status = $${idx++}`); values.push(status); }
-    if (payment_status !== undefined) { updates.push(`payment_status = $${idx++}`); values.push(payment_status); }
-    if (assigned_worker_id !== undefined) { updates.push(`assigned_worker_id = $${idx++}`); values.push(assigned_worker_id || null); }
-    if (notes !== undefined) { updates.push(`notes = $${idx++}`); values.push(notes); }
-    if (delivery_date !== undefined) { updates.push(`delivery_date = $${idx++}`); values.push(delivery_date); }
+    const allowed = await hasPermission(user.userId, 'order:edit');
+    if (!allowed) return res.status(403).json({ error: 'Forbidden' });
 
-    if (updates.length === 0) {
-      return res.status(400).json({ error: 'No fields to update' });
-    }
-    values.push(orderId);
-    await pool.query(`UPDATE orders SET ${updates.join(', ')} WHERE id = $${idx}`, values);
-    return res.status(200).json({ success: true, message: 'Order updated' });
+    const {
+      status,
+      payment_status,
+      assigned_worker_id,
+      notes,
+      delivery_date,
+    } = req.body;
+
+    const result = await pool.query(
+      `
+      UPDATE orders
+      SET
+        status = COALESCE($1, status),
+        payment_status = COALESCE($2, payment_status),
+        assigned_worker_id = COALESCE($3, assigned_worker_id),
+        notes = COALESCE($4, notes),
+        delivery_date = COALESCE($5, delivery_date),
+        updated_at = NOW()
+      WHERE id = $6
+      RETURNING *
+      `,
+      [
+        status || null,
+        payment_status || null,
+        assigned_worker_id || null,
+        notes || null,
+        delivery_date || null,
+        orderId,
+      ]
+    );
+
+    await logAudit({
+      userId: user.userId,
+      action: "UPDATE",
+      targetType: "order",
+      targetId: orderId,
+      oldData: existingOrder,
+      newData: result.rows[0],
+      ipAddress: req.headers["x-forwarded-for"] as string,
+      userAgent: req.headers["user-agent"],
+    });
+
+    return res.status(200).json({
+      success: true,
+      order: result.rows[0],
+    });
   }
 
-  // ========== DELETE (soft delete) ==========
+  // ================= DELETE ORDER =================
   if (req.method === 'DELETE') {
-    if (!(await hasPermission(user.userId, 'order:delete'))) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    await pool.query(`UPDATE orders SET deleted_at = NOW(), deleted_by = $1 WHERE id = $2`, [user.userId, orderId]);
-    return res.status(200).json({ success: true, message: 'Order deleted' });
+
+    const allowed = await hasPermission(user.userId, 'order:delete');
+    if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
+    await pool.query(
+      `
+      UPDATE orders
+      SET deleted_at = NOW(),
+          deleted_by = $1
+      WHERE id = $2
+      `,
+      [user.userId, orderId]
+    );
+
+    await logAudit({
+      userId: user.userId,
+      action: "DELETE",
+      targetType: "order",
+      targetId: orderId,
+      ipAddress: req.headers["x-forwarded-for"] as string,
+      userAgent: req.headers["user-agent"],
+    });
+
+    return res.status(200).json({ success: true });
   }
 
-  res.status(405).json({ error: 'Method not allowed' });
-}
+  return res.status(405).json({ error: 'Method not allowed' });
+});

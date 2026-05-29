@@ -1,87 +1,129 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
-import { verifyToken, hasPermission } from '@/lib/auth';
-import { logAudit } from '@/lib/audit';
-import { enforceBranchIsolation } from '@/lib/branch';
-import { ROLES } from '@/lib/roles';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const user = verifyToken(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+import { withAuth } from "@/lib/middleware/withAuth";
+import { hasPermission } from "@/lib/permissions";
+import { enforceBranchIsolation } from "@/lib/branch";
+import { logAudit } from "@/lib/audit";
+import { ROLES } from "@/lib/roles";
+
+export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) => {
 
   const { id } = req.query;
-  const productId = parseInt(id as string);
-  if (isNaN(productId)) return res.status(400).json({ error: 'Invalid product ID' });
+  const productId = Number(id);
 
-  // Branch isolation for single product
-  const { whereClause, params } = enforceBranchIsolation(user, 'p', 'branch_id');
+  if (!productId) {
+    return res.status(400).json({ error: 'Invalid product ID' });
+  }
+
+  // ================= BRANCH SECURITY CHECK =================
+  const { whereClause, params } =
+    enforceBranchIsolation(user, 'p', 'branch_id');
+
   const productRes = await pool.query(
-    `SELECT p.*, b.name as branch_name FROM products p
-     LEFT JOIN branches b ON p.branch_id = b.id
-     WHERE p.id = $${params.length + 1} AND p.deleted_at IS NULL ${whereClause}`,
+    `
+    SELECT p.*
+    FROM products p
+    WHERE p.id = $${params.length + 1}
+      AND p.deleted_at IS NULL
+      ${whereClause}
+    `,
     [...params, productId]
   );
-  if (productRes.rows.length === 0) {
+
+  if (!productRes.rows.length) {
     return res.status(404).json({ error: 'Product not found or access denied' });
   }
-  const product = productRes.rows[0];
 
-  // ========== GET ==========
+  const existing = productRes.rows[0];
+
+  // ================= GET =================
   if (req.method === 'GET') {
-    if (!await hasPermission(user.userId, 'product:view')) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    return res.status(200).json(product);
+
+    const allowed = await hasPermission(user.userId, 'product:view');
+    if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
+    return res.status(200).json(existing);
   }
 
-  // ========== PUT ==========
+  // ================= UPDATE =================
   if (req.method === 'PUT') {
-    if (!await hasPermission(user.userId, 'product:edit')) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    const { name, description, price, category_id, image_url, stock_quantity, branch_id } = req.body;
-    const updates: string[] = [];
-    const values: any[] = [];
-    let idx = 1;
-    if (name !== undefined) { updates.push(`name = $${idx++}`); values.push(name); }
-    if (description !== undefined) { updates.push(`description = $${idx++}`); values.push(description); }
-    if (price !== undefined) { updates.push(`price = $${idx++}`); values.push(price); }
-    if (category_id !== undefined) { updates.push(`category_id = $${idx++}`); values.push(category_id); }
-    if (image_url !== undefined) { updates.push(`image_url = $${idx++}`); values.push(image_url); }
-    if (stock_quantity !== undefined) { updates.push(`stock_quantity = $${idx++}`); values.push(stock_quantity); }
-    if (branch_id !== undefined) {
-      if (user.role !== ROLES.SUPERADMIN) {
-        return res.status(403).json({ error: 'Only superadmin can change branch' });
-      }
-      updates.push(`branch_id = $${idx++}`);
-      values.push(branch_id);
-    }
-    if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
-    values.push(productId);
+
+    const allowed = await hasPermission(user.userId, 'product:edit');
+    if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
+    const {
+      name,
+      description,
+      price,
+      category_id,
+      image_url,
+      stock_quantity,
+      reorder_level,
+      is_active,
+    } = req.body;
+
     const result = await pool.query(
-      `UPDATE products SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
-      values
+      `
+      UPDATE products
+      SET
+        name = COALESCE($1, name),
+        description = COALESCE($2, description),
+        price = COALESCE($3, price),
+        category_id = COALESCE($4, category_id),
+        image_url = COALESCE($5, image_url),
+        stock_quantity = COALESCE($6, stock_quantity),
+        reorder_level = COALESCE($7, reorder_level),
+        is_active = COALESCE($8, is_active),
+        updated_at = NOW()
+      WHERE id = $9
+      RETURNING *
+      `,
+      [
+        name,
+        description,
+        price,
+        category_id,
+        image_url,
+        stock_quantity,
+        reorder_level,
+        is_active,
+        productId,
+      ]
     );
+
     const updated = result.rows[0];
+
     await logAudit({
       userId: user.userId,
       action: 'UPDATE',
       targetType: 'product',
       targetId: productId,
-      oldData: product,
+      oldData: existing,
       newData: updated,
       ipAddress: req.headers['x-forwarded-for'] as string,
       userAgent: req.headers['user-agent'],
     });
+
     return res.status(200).json(updated);
   }
 
-  // ========== DELETE ==========
+  // ================= DELETE =================
   if (req.method === 'DELETE') {
-    if (!await hasPermission(user.userId, 'product:delete')) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    await pool.query('UPDATE products SET deleted_at = NOW(), deleted_by = $1 WHERE id = $2', [user.userId, productId]);
+
+    const allowed = await hasPermission(user.userId, 'product:delete');
+    if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
+    await pool.query(
+      `
+      UPDATE products
+      SET deleted_at = NOW(),
+          deleted_by = $1
+      WHERE id = $2
+      `,
+      [user.userId, productId]
+    );
+
     await logAudit({
       userId: user.userId,
       action: 'DELETE',
@@ -90,8 +132,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ipAddress: req.headers['x-forwarded-for'] as string,
       userAgent: req.headers['user-agent'],
     });
+
     return res.status(200).json({ success: true });
   }
 
-  res.status(405).end();
-}
+  return res.status(405).json({ error: 'Method not allowed' });
+});

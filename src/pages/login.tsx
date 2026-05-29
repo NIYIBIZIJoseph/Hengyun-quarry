@@ -27,6 +27,9 @@ export default function LoginPage() {
         body: JSON.stringify({ phone, password }),
       });
       const data = await res.json();
+      
+      console.log('Login response:', data);
+      
       if (!res.ok) throw new Error(data.error || t('login') + ' ' + t('failed'));
       
       if (data.requiresTwoFactor) {
@@ -37,15 +40,29 @@ export default function LoginPage() {
         return;
       }
       
-      const userToStore = {
-        ...data.user,
-        fullName: data.user.fullName || data.user.full_name || phone,
-      };
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(userToStore));
+      if (!data.token) {
+        throw new Error('No token received from server');
+      }
       
-      router.push('/dashboard');
+      // Store token in localStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify({
+        id: data.user.id,
+        fullName: data.user.fullName || data.user.full_name,
+        role: data.user.role,
+        branchId: data.user.branchId,
+      }));
+      
+      // ALSO SET COOKIE FOR MIDDLEWARE (7 days expiration)
+      document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+      
+      console.log('Token stored in localStorage and cookie, redirecting to dashboard...');
+      
+      // Force hard redirect
+      window.location.href = '/dashboard';
+      
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.message);
       setLoading(false);
     }
@@ -63,13 +80,19 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t('verificationFailed'));
-      const userToStore = {
-        ...data.user,
-        fullName: data.user.fullName || data.user.full_name || phone,
-      };
+      
       localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(userToStore));
-      router.push('/dashboard');
+      localStorage.setItem('user', JSON.stringify({
+        id: data.user.id,
+        fullName: data.user.fullName || data.user.full_name,
+        role: data.user.role,
+        branchId: data.user.branchId,
+      }));
+      
+      // ALSO SET COOKIE FOR MIDDLEWARE
+      document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+      
+      window.location.href = '/dashboard';
     } catch (err: any) {
       setError(err.message);
       setLoading(false);

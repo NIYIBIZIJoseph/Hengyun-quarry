@@ -1,41 +1,44 @@
-import type { NextApiRequest } from "next";
 import jwt from "jsonwebtoken";
+import type { NextApiRequest } from "next";
+import { ROLES, Role } from "./roles";
 
-export type AuthUser = {
+export interface AuthUser {
   userId: number;
-  role?: string;
-  branchId?: number | null;
+  role?: Role;
+  branchId?: number;
   permissions?: string[];
-};
+}
 
 /**
- * SINGLE SOURCE OF TRUTH: JWT verification
- * - async (consistent with middleware design)
- * - never throws to callers
- * - always returns AuthUser | null
+ * VERIFY JWT TOKEN (single source of truth)
  */
-export async function verifyToken(
-  req: NextApiRequest
-): Promise<AuthUser | null> {
+export function verifyToken(req: NextApiRequest): AuthUser | null {
   try {
     const authHeader = req.headers.authorization;
-
     if (!authHeader) return null;
 
-    const token = authHeader.replace("Bearer ", "").trim();
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : null;
 
     if (!token) return null;
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET as string
-    ) as AuthUser;
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error("JWT_SECRET missing");
 
-    // hard safety normalization (prevents broken tokens)
-    if (!decoded?.userId) return null;
-
-    return decoded;
-  } catch (err) {
+    return jwt.verify(token, secret) as AuthUser;
+  } catch {
     return null;
   }
+}
+
+/**
+ * ROLE HELPERS (cleaned)
+ */
+export function hasRole(user: AuthUser | null, role: Role): boolean {
+  return !!user && user.role === role;
+}
+
+export function isSuperAdmin(user: AuthUser | null): boolean {
+  return user?.role === ROLES.SUPERADMIN;
 }

@@ -1,32 +1,60 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { getUserRoleFromToken } from '@/lib/auth-client';
-import { logAudit } from '@/lib/audit';
+import type { NextApiRequest, NextApiResponse } from "next";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') return res.status(405).end();
+import { withAuth } from "@/lib/middleware/withAuth";
+import { hasPermission } from "@/lib/permissions";
+import { logAudit } from "@/lib/audit";
+import { AuthUser } from "@/lib/auth";
 
-  const role = getUserRoleFromToken();
+export default withAuth(async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+  user: AuthUser
+) => {
 
-  // ⚠️ fallback user object (since no verifyToken exists)
-  const userId = 1; // temporary fallback (you must improve later)
-
-  const isAllowed =
-    role === 'superadmin' || role === 'admin';
-
-  if (!isAllowed) {
-    return res.status(403).json({ error: 'Forbidden' });
+  // =====================================================
+  // METHOD CHECK
+  // =====================================================
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  await logAudit({
-    userId,
-    action: 'CLEAR_CACHE',
-    targetType: 'system',
-    ipAddress: req.headers['x-forwarded-for'] as string,
-    userAgent: req.headers['user-agent'],
-  });
+  // =====================================================
+  // PERMISSION CHECK
+  // =====================================================
+  const allowed = await hasPermission(user.userId, "admin:controls");
 
-  return res.status(200).json({
-    success: true,
-    message: 'Cache clear logged (no cache implemented)',
-  });
-}
+  if (!allowed) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  // =====================================================
+  // CACHE CLEAR (PLACEHOLDER LOGIC)
+  // =====================================================
+  try {
+
+    // NOTE: real cache system (Redis / memory / CDN) should be added later
+    console.log("Cache cleared (placeholder)");
+
+    await logAudit({
+      userId: user.userId,
+      action: "CLEAR_CACHE",
+      targetType: "system",
+      ipAddress:
+        (req.headers["x-forwarded-for"] as string) ||
+        req.socket.remoteAddress,
+      userAgent: req.headers["user-agent"],
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Cache cleared (placeholder - implement Redis/CDN later)",
+    });
+
+  } catch (err: any) {
+    console.error("CLEAR CACHE ERROR:", err);
+
+    return res.status(500).json({
+      error: "Failed to clear cache",
+    });
+  }
+});

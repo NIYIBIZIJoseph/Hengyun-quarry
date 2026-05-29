@@ -13,18 +13,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!phone || !password) return res.status(400).json({ error: 'Phone and password required' });
 
   try {
+    // ✅ FIXED: Changed r.id as role to r.name as role
     const result = await pool.query(
       `SELECT u.id, u.full_name, u.phone, u.password, u.branch_id, u.force_password_reset,
-              u.two_factor_enabled, r.id as role
+              u.two_factor_enabled, r.name as role
        FROM users u
        JOIN roles r ON u.role_id = r.id
        WHERE u.phone = $1 AND u.deleted_at IS NULL`,
       [phone]
     );
-    if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
+    
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
     const user = result.rows[0];
     const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) return res.status(401).json({ error: 'Invalid credentials' });
+    
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
     // ========== ADD LOGIN NOTIFICATION ==========
     await createNotification({
@@ -56,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       {
         userId: user.id,
         phone: user.phone,
-        role: user.role,
+        role: user.role,  // This will now be 'SUPERADMIN', 'ADMIN', etc.
         branchId: user.branch_id,
         forceReset: user.force_password_reset,
       },

@@ -1,12 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { withAuth } from "@/lib/middleware/withAuth";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) => {
+
   if (req.method !== 'GET') return res.status(405).end();
-
-  const user = verifyToken(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
     const result = await pool.query(
@@ -15,13 +13,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
 
     if (result.rows.length === 0) {
-      // Fallback: return basic modules if role not configured
-      return res.status(200).json({ modules: ['workforce', 'support', 'attendanceSnapshot'] });
+      return res.status(200).json({
+        modules: ['workforce', 'support', 'attendanceSnapshot']
+      });
     }
 
-    res.status(200).json({ modules: result.rows[0].modules });
+    return res.status(200).json({
+      modules: result.rows[0].modules
+    });
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to fetch dashboard config' });
+    return res.status(500).json({ error: 'Failed to fetch dashboard config' });
   }
-}
+});

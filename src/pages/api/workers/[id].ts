@@ -1,26 +1,23 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { withAuth } from '@/lib/middleware/withAuth';
 import { logAudit } from '@/lib/audit';
+import { hasPermission } from '@/lib/permissions';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  const user = verifyToken(req);
-
-  if (!user) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
+export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) => {
   const { id } = req.query;
 
-  if (!id) {
-    return res.status(400).json({ error: 'Worker ID required' });
+  if (!id || isNaN(Number(id))) {
+    return res.status(400).json({ error: 'Invalid worker ID' });
   }
+
+  const workerId = Number(id);
 
   // ================= GET SINGLE WORKER =================
   if (req.method === 'GET') {
+    const allowed = await hasPermission(user.userId, 'worker:view');
+    if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
     try {
       const result = await pool.query(
         `
@@ -29,17 +26,15 @@ export default async function handler(
           d.name AS department_name,
           b.name AS branch_name
         FROM workers w
-        LEFT JOIN departments d
-          ON w.department_id = d.id
-        LEFT JOIN branches b
-          ON w.branch_id = b.id
+        LEFT JOIN departments d ON w.department_id = d.id
+        LEFT JOIN branches b ON w.branch_id = b.id
         WHERE w.id = $1
         LIMIT 1
         `,
-        [id]
+        [workerId]
       );
 
-      if (result.rows.length === 0) {
+      if (!result.rows.length) {
         return res.status(404).json({ error: 'Worker not found' });
       }
 
@@ -52,6 +47,9 @@ export default async function handler(
 
   // ================= UPDATE WORKER =================
   if (req.method === 'PUT') {
+    const allowed = await hasPermission(user.userId, 'worker:edit');
+    if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
     try {
       const {
         full_name,
@@ -67,10 +65,10 @@ export default async function handler(
 
       const existing = await pool.query(
         `SELECT * FROM workers WHERE id = $1`,
-        [id]
+        [workerId]
       );
 
-      if (existing.rows.length === 0) {
+      if (!existing.rows.length) {
         return res.status(404).json({ error: 'Worker not found' });
       }
 
@@ -88,7 +86,8 @@ export default async function handler(
           join_date = $6,
           location = $7,
           image_url = $8,
-          is_active = $9
+          is_active = $9,
+          updated_at = NOW()
         WHERE id = $10
         RETURNING *
         `,
@@ -102,7 +101,7 @@ export default async function handler(
           location || null,
           image_url || null,
           is_active,
-          id,
+          workerId,
         ]
       );
 
@@ -110,7 +109,7 @@ export default async function handler(
         userId: user.userId,
         action: 'UPDATE',
         targetType: 'worker',
-        targetId: Number(id),
+        targetId: workerId,
         oldData,
         newData: updated.rows[0],
         ipAddress: req.headers['x-forwarded-for'] as string,
@@ -126,14 +125,13 @@ export default async function handler(
 
   // ================= DELETE WORKER =================
   if (req.method === 'DELETE') {
+    const allowed = await hasPermission(user.userId, 'worker:delete');
+    if (!allowed) return res.status(403).json({ error: 'Forbidden' });
+
     try {
       await pool.query(
-        `
-        UPDATE workers
-        SET is_active = false
-        WHERE id = $1
-        `,
-        [id]
+        `UPDATE workers SET is_active = false WHERE id = $1`,
+        [workerId]
       );
 
       return res.status(200).json({
@@ -146,7 +144,5 @@ export default async function handler(
     }
   }
 
-  return res.status(405).json({
-    error: 'Method not allowed',
-  });
-}
+  return res.status(405).json({ error: 'Method not allowed' });
+});

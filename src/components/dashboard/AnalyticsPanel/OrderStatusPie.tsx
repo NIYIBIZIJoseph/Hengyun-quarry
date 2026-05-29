@@ -31,36 +31,36 @@ export default function OrderStatusPie() {
 
   const getStatusTranslation = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'pending': return t('statusPending');
-      case 'approved': return t('statusApproved');
-      case 'delivered': return t('statusDelivered');
-      case 'cancelled': return t('statusCancelled');
-      default: return status || t('unknown');
+      case 'pending': return t('statusPending') || 'Pending';
+      case 'approved': return t('statusApproved') || 'Approved';
+      case 'delivered': return t('statusDelivered') || 'Delivered';
+      case 'cancelled': return t('statusCancelled') || 'Cancelled';
+      default: return status || t('unknown') || 'Unknown';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'pending': return '#f59e0b';  // orange/yellow
-      case 'approved': return '#10b981'; // green
-      case 'delivered': return '#3b82f6'; // blue
-      case 'cancelled': return '#dc2626'; // red
-      default: return '#6b7280'; // gray
+      case 'pending': return '#f59e0b';
+      case 'approved': return '#10b981';
+      case 'delivered': return '#3b82f6';
+      case 'cancelled': return '#dc2626';
+      default: return '#6b7280';
     }
   };
 
   if (loading) {
     return (
       <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
-        {t('loadingChart')}
+        {t('loadingChart') || 'Loading chart...'}
       </div>
     );
   }
 
-  if (data.length === 0) {
+  if (!data || data.length === 0) {
     return (
       <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', textAlign: 'center', color: '#6b7280' }}>
-        {t('noOrderData')}
+        {t('noOrderData') || 'No order data'}
       </div>
     );
   }
@@ -69,7 +69,6 @@ export default function OrderStatusPie() {
     labels: data.map(item => getStatusTranslation(item.status)),
     datasets: [
       {
-        label: t('orders'),
         data: data.map(item => item.count),
         backgroundColor: data.map(item => getStatusColor(item.status)),
         borderWidth: 0,
@@ -100,7 +99,7 @@ export default function OrderStatusPie() {
 
   return (
     <div style={{ background: 'white', padding: '1rem', borderRadius: '12px' }}>
-      <h4>{t('orderStatusDistribution')}</h4>
+      <h4 style={{ marginBottom: '1rem' }}>{t('orderStatusDistribution') || 'Order Status Distribution'}</h4>
       <Pie data={chartData} options={options} />
     </div>
   );

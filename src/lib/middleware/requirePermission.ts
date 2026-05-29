@@ -1,20 +1,20 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { AuthUser } from "@/lib/auth";
+import type { AuthUser } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 
-type ApiHandler = (
+type Handler = (
   req: NextApiRequest,
   res: NextApiResponse,
   user: AuthUser
-) => Promise<void> | void;
+) => Promise<any> | any;
 
-/**
- * PERMISSION MIDDLEWARE
- * Must be used AFTER requireAuth
- */
-export function requirePermission(permission: string, handler: ApiHandler) {
-  return async (req: NextApiRequest, res: NextApiResponse, user: AuthUser) => {
-    try {
+export function requirePermission(permission: string) {
+  return (handler: Handler) => {
+    return async (req: NextApiRequest, res: NextApiResponse, user: AuthUser) => {
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
       const allowed = await hasPermission(user.userId, permission);
 
       if (!allowed) {
@@ -22,8 +22,6 @@ export function requirePermission(permission: string, handler: ApiHandler) {
       }
 
       return handler(req, res, user);
-    } catch (err) {
-      return res.status(500).json({ error: "Permission check failed" });
-    }
+    };
   };
 }

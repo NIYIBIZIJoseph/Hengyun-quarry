@@ -1,29 +1,21 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { verifyToken } from '@/lib/auth';
-import { exec } from 'child_process';
-import path from 'path';
-import { ROLES } from '@/lib/roles';
+import type { NextApiRequest, NextApiResponse } from "next";
+import { requireAuth } from "@/lib/middleware/requireAuth";
+import { ROLES } from "@/lib/roles";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const user = await verifyToken(req);
-  if (!user || user.role !== ROLES.SUPERADMIN) {
-    return res.status(401).json({ error: 'Unauthorized' });
+export default requireAuth(async (req: NextApiRequest, res: NextApiResponse, user) => {
+
+  if (user.role !== ROLES.SUPERADMIN) {
+    return res.status(403).json({ error: "Forbidden" });
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // This is a placeholder – implement actual backup using pg_dump or a cloud service
-  // For production, you'd run a shell command or use a backup service.
-  try {
-    const backupDir = path.join(process.cwd(), 'backups');
-    const fileName = `backup_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.sql`;
-    // Example command (requires pg_dump in PATH)
-    // exec(`pg_dump -U postgres -h localhost quarry_system > ${backupDir}/${fileName}`);
-    res.status(200).json({ message: 'Backup initiated (demo). Implement actual pg_dump in production.' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Backup failed' });
-  }
-}
+  const fileName = `backup_${new Date().toISOString().replace(/[:.]/g, "-")}.sql`;
+
+  return res.status(200).json({
+    message: "Backup initiated (placeholder)",
+    file: `backups/${fileName}`
+  });
+});
