@@ -71,20 +71,15 @@ export default function DashboardPage() {
   const isSuperAdmin = userRole === ROLES.SUPERADMIN;
   const isAdmin = userRole === ROLES.ADMIN || isSuperAdmin;
   const isSupervisor = userRole === ROLES.SUPERVISOR;
-  const isServiceProvider = userRole === ROLES.SERVICE_PROVIDER;
-
-  // Admin can see everything except maybe some superadmin-only features
-  // Supervisor can see Workforce, Attendance, Support
-  // Service Provider can only see Support and limited info
 
   return (
     <DashboardLayout>
       <DashboardHeader />
 
-      {/* AI Summary - Admin only (SuperAdmin and Admin) */}
+      {/* AI Summary - Admin only */}
       {isAdmin && <AISummary />}
 
-      {/* BUSINESS - Only Admin (SuperAdmin and Admin) */}
+      {/* BUSINESS - Only Admin */}
       {isAdmin && (
         <div style={{ marginBottom: '2rem' }}>
           <h2>Business</h2>
@@ -92,7 +87,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* WORKFORCE - Admin and Supervisor (NOT Service Provider) */}
+      {/* WORKFORCE - Admin and Supervisor */}
       {(isAdmin || isSupervisor) && (
         <div style={{ marginBottom: '2rem' }}>
           <h2>Workforce</h2>
@@ -100,7 +95,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* INVENTORY - Only Admin (SuperAdmin and Admin) */}
+      {/* INVENTORY - Only Admin */}
       {isAdmin && (
         <div style={{ marginBottom: '2rem' }}>
           <h2>Inventory</h2>
@@ -121,31 +116,20 @@ export default function DashboardPage() {
         <div>
           <RecentActivity />
           <div style={{ marginTop: '1.5rem' }}><AttendanceSnapshot /></div>
-          {/* Recent Orders - Only Admin */}
           {isAdmin && <div style={{ marginTop: '1.5rem' }}><RecentOrders /></div>}
           <div style={{ marginTop: '1.5rem' }}><SupportQueue /></div>
           <div style={{ marginTop: '1.5rem' }}><AlertBar /></div>
         </div>
 
         <div>
-          {/* Revenue Chart - Only Admin */}
           {isAdmin && <RevenueChart />}
-          
-          {/* Order Status Pie - Only Admin */}
           {isAdmin && <div style={{ marginTop: '1.5rem' }}><OrderStatusPie /></div>}
-          
-          {/* Inventory Health Chart - Only Admin */}
           {isAdmin && <div style={{ marginTop: '1.5rem' }}><InventoryHealthChart /></div>}
-          
-          {/* Attendance Trend Chart - Everyone */}
           <div style={{ marginTop: '1.5rem' }}><AttendanceTrendChart /></div>
         </div>
       </div>
 
-      {/* Branch Performance - Only Admin */}
       {isAdmin && <BranchPerformance />}
-      
-      {/* Pending Approvals - Only Admin */}
       {isAdmin && <PendingApprovals />}
     </DashboardLayout>
   );

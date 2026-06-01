@@ -24,7 +24,6 @@ export default withAuth(async (
 
     const { status, role, search } = req.query;
 
-    // ✅ FIXED: Added LEFT JOIN branches to get branch_name
     let query = `
       SELECT u.id, u.phone, u.full_name,
              r.name as role, u.status,
@@ -63,8 +62,14 @@ export default withAuth(async (
 
     query += ` ORDER BY u.created_at DESC`;
 
-    const result = await pool.query(query, params);
-    return res.status(200).json(result.rows);
+    try {
+      const result = await pool.query(query, params);
+      return res.status(200).json(result.rows);
+    } catch (error) {
+      console.error("Database error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown database error";
+      return res.status(500).json({ error: "Database error", details: errorMessage });
+    }
   }
 
   // ================= CREATE USER =================
@@ -77,37 +82,58 @@ export default withAuth(async (
 
     const { phone, password, full_name, role, branch_id } = req.body;
 
-    const roleRes = await pool.query(
-      "SELECT id FROM roles WHERE name = $1",
-      [role]
-    );
-
-    if (!roleRes.rows.length) {
-      return res.status(400).json({ error: "Invalid role" });
+    // Validate required fields
+    if (!phone || !password || !full_name || !role) {
+      return res.status(400).json({ error: "Missing required fields: phone, password, full_name, role" });
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    try {
+      // Check if user already exists
+      const existingUser = await pool.query(
+        "SELECT id FROM users WHERE phone = $1 AND deleted_at IS NULL",
+        [phone]
+      );
+      
+      if (existingUser.rows.length) {
+        return res.status(409).json({ error: "User with this phone number already exists" });
+      }
 
-    const result = await pool.query(
-      `
-      INSERT INTO users (phone, password, full_name, role_id, branch_id, status, force_password_reset)
-      VALUES ($1,$2,$3,$4,$5,'active',true)
-      RETURNING id, phone, full_name
-      `,
-      [phone, hashed, full_name, roleRes.rows[0].id, branch_id ?? null]
-    );
+      const roleRes = await pool.query(
+        "SELECT id FROM roles WHERE name = $1",
+        [role]
+      );
 
-    await logAudit({
-      userId: user.userId,
-      action: "CREATE_USER",
-      targetType: "user",
-      targetId: result.rows[0].id,
-      newData: { phone, full_name, role },
-      ipAddress: req.headers["x-forwarded-for"] as string,
-      userAgent: req.headers["user-agent"],
-    });
+      if (!roleRes.rows.length) {
+        return res.status(400).json({ error: "Invalid role" });
+      }
 
-    return res.status(201).json(result.rows[0]);
+      const hashed = await bcrypt.hash(password, 10);
+
+      const result = await pool.query(
+        `
+        INSERT INTO users (phone, password, full_name, role_id, branch_id, status, force_password_reset)
+        VALUES ($1, $2, $3, $4, $5, 'active', true)
+        RETURNING id, phone, full_name
+        `,
+        [phone, hashed, full_name, roleRes.rows[0].id, branch_id ? Number(branch_id) : null]
+      );
+
+      await logAudit({
+        userId: user.userId,
+        action: "CREATE_USER",
+        targetType: "user",
+        targetId: result.rows[0].id,
+        newData: { phone, full_name, role },
+        ipAddress: req.headers["x-forwarded-for"] as string,
+        userAgent: req.headers["user-agent"],
+      });
+
+      return res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error("Database error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown database error";
+      return res.status(500).json({ error: "Database error", details: errorMessage });
+    }
   }
 
   return res.status(405).json({ error: "Method not allowed" });

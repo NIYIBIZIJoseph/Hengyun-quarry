@@ -224,18 +224,26 @@ export default function MarketCategory() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const res = await fetch("/api/place-order", {
+    
+    const items = [{
+      product_id: activeProduct.id,
+      quantity: parseInt(formData.quantity)
+    }];
+    
+    // ✅ CHANGED: Using public API endpoint
+    const res = await fetch("/api/public/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        product_id: activeProduct.id,
         client_name: formData.name,
         client_phone: formData.phone,
-        quantity: parseInt(formData.quantity),
         delivery_location: formData.location,
-        note: formData.note,
+        items: items,
+        notes: formData.note,
+        bargaining: formData.bargaining,
       }),
     });
+    
     if (res.ok) {
       setSubmitted(true);
       setActiveProduct(null);
@@ -250,7 +258,8 @@ export default function MarketCategory() {
       });
       setTimeout(() => setSubmitted(false), 3000);
     } else {
-      alert("Order submission failed. Please try again.");
+      const errorData = await res.json();
+      alert(`Order failed: ${errorData.error || "Please try again."}`);
     }
   };
 

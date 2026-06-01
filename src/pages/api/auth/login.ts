@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { createNotification } from '@/lib/notifications';
+// import { createNotification } from '@/lib/notifications'; // REMOVED - Commented out
 
 const JWT_SECRET = process.env.JWT_SECRET || 'hardcoded-secret-2026';
 
@@ -34,15 +34,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // ========== ADD LOGIN NOTIFICATION ==========
-    await createNotification({
-      userId: user.id,
-      title: 'Login Successful',
-      message: `You logged in at ${new Date().toLocaleString()}`,
-      type: 'auth',
-      priority: 'low',
-      link: '/dashboard'
-    });
+    // ========== LOGIN NOTIFICATION REMOVED ==========
+    // The createNotification call has been removed
 
     // If 2FA enabled, create a temporary token (short-lived) and ask for code
     if (user.two_factor_enabled) {

@@ -5,7 +5,7 @@ import { withAuth } from "@/lib/middleware/withAuth";
 import { hasPermission } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 import { enforceBranchIsolation } from "@/lib/branch";
-import { createNotificationForAllAdmins } from "@/lib/notifications";
+import { createNotificationForAllAdmins, createNotificationForUser } from "@/lib/notifications";
 import { ROLES } from "@/lib/roles";
 
 export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) => {
@@ -18,7 +18,6 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) 
 
     const { whereClause, params } = enforceBranchIsolation(user, "o", "branch_id");
 
-    // ✅ FIXED: Added product names and product count
     const result = await pool.query(
       `
       SELECT 
@@ -102,9 +101,10 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) 
       }
     }
 
+    // ✅ NOTIFICATION: New order created
     await createNotificationForAllAdmins(
-      "New Order Created",
-      `Order ${orderNumber} created by ${client_name}`,
+      "🛒 New Order Created",
+      `Order ${orderNumber} from ${client_name} for ${(total_amount || 0).toLocaleString()} RWF`,
       "order",
       "medium",
       `/dashboard/orders/${order.id}`
@@ -132,6 +132,12 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) 
     const { id, status, payment_status } = req.body;
 
     if (!id) return res.status(400).json({ error: "Order ID required" });
+
+    // Get order details before update for notification
+    const orderBefore = await pool.query(
+      `SELECT order_number, client_name FROM orders WHERE id = $1`,
+      [id]
+    );
 
     const updates: string[] = [];
     const values: any[] = [];
@@ -162,17 +168,30 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) 
       values
     );
 
+    const order = result.rows[0];
+
+    // ✅ NOTIFICATION: Order status changed
+    if (status && status !== orderBefore.rows[0]?.status) {
+      await createNotificationForAllAdmins(
+        "📦 Order Status Updated",
+        `Order ${orderBefore.rows[0]?.order_number} status changed to ${status}`,
+        "order",
+        status === 'delivered' ? 'high' : 'medium',
+        `/dashboard/orders/${id}`
+      );
+    }
+
     await logAudit({
       userId: user.userId,
       action: "UPDATE",
       targetType: "order",
       targetId: id,
-      newData: result.rows[0],
+      newData: order,
       ipAddress: req.headers["x-forwarded-for"] as string,
       userAgent: req.headers["user-agent"],
     });
 
-    return res.status(200).json({ success: true, order: result.rows[0] });
+    return res.status(200).json({ success: true, order });
   }
 
   // ================= DELETE ORDER =================

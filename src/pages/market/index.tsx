@@ -223,7 +223,9 @@ export default function MarketHome() {
       product_id: activeProduct.id,
       quantity: parseInt(formData.quantity)
     }];
-    const res = await fetch("/api/orders", {
+    
+    // ✅ CHANGED: Using public API endpoint
+    const res = await fetch("/api/public/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -232,8 +234,10 @@ export default function MarketHome() {
         delivery_location: formData.location,
         items: items,
         notes: formData.note,
+        bargaining: formData.bargaining,
       }),
     });
+    
     if (res.ok) {
       setSubmitted(true);
       setActiveProduct(null);

@@ -106,7 +106,6 @@ export default function AccountSettings() {
       });
       const data = await res.json();
       if (res.ok && data.url) {
-        // Update profile with new image
         const updateRes = await fetch('/api/user/profile', {
           method: 'PUT',
           headers: getAuthHeaders(),
@@ -198,12 +197,13 @@ export default function AccountSettings() {
     }
   };
 
+  // ✅ FIXED: Setup 2FA - Using your API
   const setupTwoFactor = async () => {
     setTwoFactorLoading(true);
     setTwoFactorMessage('');
     try {
       const res = await fetch('/api/user/two-factor/setup', {
-        method: 'POST',
+        method: 'GET',
         headers: getAuthHeaders(),
       });
       const data = await res.json();
@@ -219,6 +219,7 @@ export default function AccountSettings() {
     }
   };
 
+  // ✅ FIXED: Verify 2FA - Using your API
   const verifyTwoFactor = async () => {
     if (!verificationCode) {
       setTwoFactorMessage('Please enter verification code');
@@ -229,12 +230,16 @@ export default function AccountSettings() {
       const res = await fetch('/api/user/two-factor/verify', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ code: verificationCode, secret: twoFactorSecret }),
+        body: JSON.stringify({ 
+          secret: twoFactorSecret, 
+          code: verificationCode 
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Verification failed');
       setTwoFactorEnabled(true);
       setShow2FAModal(false);
+      setBackupCodes(data.backupCodes || []);
       setTwoFactorMessage('2FA enabled successfully!');
       setTimeout(() => setTwoFactorMessage(''), 3000);
     } catch (err: any) {
@@ -244,6 +249,7 @@ export default function AccountSettings() {
     }
   };
 
+  // ✅ FIXED: Disable 2FA - Using your API
   const disableTwoFactor = async () => {
     if (!confirm('Disable two-factor authentication? This will reduce account security.')) return;
     setTwoFactorLoading(true);
@@ -376,15 +382,6 @@ export default function AccountSettings() {
             <button type="button" onClick={() => setShowPasswordModal(true)} style={{ background: '#e5e7eb', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <FontAwesomeIcon icon={faKey} /> {t('changePassword') || 'Change Password'}
             </button>
-            {!twoFactorEnabled ? (
-              <button type="button" onClick={setupTwoFactor} disabled={twoFactorLoading} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FontAwesomeIcon icon={faShieldAlt} /> {twoFactorLoading ? (t('loading') || 'Loading...') : (t('setup2fa') || 'Set up 2FA')}
-              </button>
-            ) : (
-              <button type="button" onClick={disableTwoFactor} disabled={twoFactorLoading} style={{ background: '#dc2626', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FontAwesomeIcon icon={faShieldAlt} /> {twoFactorLoading ? (t('loading') || 'Loading...') : (t('disable2fa') || 'Disable 2FA')}
-              </button>
-            )}
           </div>
         </form>
       </div>
@@ -417,9 +414,13 @@ export default function AccountSettings() {
                 : 'Enable 2FA to add an extra layer of security to your account.'}
             </p>
           </div>
-          {!twoFactorEnabled && (
-            <button onClick={setupTwoFactor} style={{ background: '#f59e0b', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>
-              Enable 2FA
+          {!twoFactorEnabled ? (
+            <button onClick={setupTwoFactor} disabled={twoFactorLoading} style={{ background: '#f59e0b', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>
+              {twoFactorLoading ? 'Loading...' : 'Enable 2FA'}
+            </button>
+          ) : (
+            <button onClick={disableTwoFactor} disabled={twoFactorLoading} style={{ background: '#dc2626', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>
+              {twoFactorLoading ? 'Loading...' : 'Disable 2FA'}
             </button>
           )}
         </div>
@@ -508,12 +509,21 @@ export default function AccountSettings() {
             )}
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', marginBottom: '4px' }}>{t('verificationCode') || 'Verification Code'}</label>
-              <input type="text" value={verificationCode} onChange={e => setVerificationCode(e.target.value)} placeholder="000000" maxLength={6} style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '6px' }} />
+              <input 
+                type="text" 
+                value={verificationCode} 
+                onChange={e => setVerificationCode(e.target.value)} 
+                placeholder="000000" 
+                maxLength={6} 
+                style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '6px', fontSize: '1rem', textAlign: 'center' }} 
+              />
             </div>
-            {twoFactorMessage && <div style={{ color: '#dc2626', marginBottom: '1rem' }}>{twoFactorMessage}</div>}
+            {twoFactorMessage && <div style={{ color: twoFactorMessage.includes('success') ? '#10b981' : '#dc2626', marginBottom: '1rem' }}>{twoFactorMessage}</div>}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button type="button" onClick={() => setShow2FAModal(false)} style={{ padding: '8px 16px', background: '#e5e7eb', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>{t('cancel') || 'Cancel'}</button>
-              <button type="button" onClick={verifyTwoFactor} disabled={twoFactorLoading} style={{ padding: '8px 16px', background: '#f59e0b', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>{twoFactorLoading ? (t('verifying') || 'Verifying...') : (t('verifyAndEnable') || 'Verify & Enable')}</button>
+              <button type="button" onClick={verifyTwoFactor} disabled={twoFactorLoading} style={{ padding: '8px 16px', background: '#f59e0b', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                {twoFactorLoading ? (t('verifying') || 'Verifying...') : (t('verifyAndEnable') || 'Verify & Enable')}
+              </button>
             </div>
           </div>
         </div>
