@@ -33,10 +33,8 @@ export default function PublicHeader() {
 
   // Add CSS for image hover effect and larger text
   useEffect(() => {
-    // Add global styles for image hover effect
     const style = document.createElement('style');
     style.textContent = `
-      /* Image hover overlay effect */
       .image-container {
         position: relative;
         overflow: hidden;
@@ -79,7 +77,6 @@ export default function PublicHeader() {
         transform: scale(1.1);
       }
       
-      /* Larger text styles */
       .public-header .main-nav a,
       .public-header .main-nav .dropdown > a,
       .public-header .main-nav .login-btn {

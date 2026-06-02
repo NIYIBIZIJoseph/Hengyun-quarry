@@ -3,7 +3,7 @@ import type { AppProps } from 'next/app';
 import BackToTop from '@/components/BackToTop';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { getAuthHeaders, getUserRoleFromToken } from '@/lib/auth-client';
-import { ROLES } from '@/lib/roles';  // ← CHANGE THIS LINE
+import { ROLES } from '@/lib/roles';
 import '../styles/globals.css';
 import '../styles/tokens.css';
 import '../styles/header.css';
@@ -36,11 +36,12 @@ export default function App({ Component, pageProps }: AppProps) {
     applyPreferences();
   }, []);
 
-  // Maintenance mode check (only for non‑superadmin)
+  // Maintenance mode check - UPDATED to use PUBLIC API
   useEffect(() => {
     const checkMaintenance = async () => {
       try {
-        const res = await fetch('/api/admin/maintenance-mode');
+        // ✅ CHANGED: Use public API endpoint (no auth required)
+        const res = await fetch('/api/public/maintenance-mode');
         const data = await res.json();
         if (data.enabled) {
           const userRole = getUserRoleFromToken();
@@ -50,6 +51,7 @@ export default function App({ Component, pageProps }: AppProps) {
         }
       } catch (err) {
         // API may not exist yet – ignore
+        console.error('Maintenance check error:', err);
       }
     };
     checkMaintenance();
