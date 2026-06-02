@@ -15,6 +15,21 @@ interface FAQ {
   category: string;
 }
 
+// Skeleton loader component
+function SkeletonLoader() {
+  return (
+    <div className="skeleton-faq-list">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} style={{ marginBottom: "1rem", border: "1px solid #e5e7eb", borderRadius: "8px", overflow: "hidden" }}>
+          <div style={{ padding: "1rem", backgroundColor: "#f9fafb" }}>
+            <div className="skeleton-text" style={{ width: "70%", height: "20px" }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function FAQPage() {
   const { locale } = useLanguage();
   const t = translations[locale as keyof typeof translations];
@@ -26,11 +41,12 @@ export default function FAQPage() {
     fetch("/api/public/faq")
       .then((res) => res.json())
       .then((data) => {
-        setFaqs(data);
+        setFaqs(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch((err) => {
         console.error(err);
+        setFaqs([]);
         setLoading(false);
       });
   }, []);
@@ -60,9 +76,9 @@ export default function FAQPage() {
       <section style={faqSectionStyle}>
         <div style={containerStyle}>
           {loading ? (
-            <p className="text-center">Loading FAQs...</p>
+            <SkeletonLoader />
           ) : faqs.length === 0 ? (
-            <p className="text-center">No FAQs found.</p>
+            <p style={{ textAlign: "center", padding: "2rem" }}>No FAQs found. Check back later!</p>
           ) : (
             <div className="faq-list">
               {faqs.map((faq, idx) => (
@@ -71,7 +87,7 @@ export default function FAQPage() {
                     onClick={() => toggle(idx)}
                     style={faqQuestionStyle}
                   >
-                    {faq.question}
+                    <span>{faq.question}</span>
                     <FontAwesomeIcon icon={openIndex === idx ? faChevronUp : faChevronDown} />
                   </button>
                   {openIndex === idx && (
@@ -86,12 +102,26 @@ export default function FAQPage() {
             </div>
           )}
           <div style={contactLinkWrapper}>
-          <Link href="/contact" style={contactButtonStyle}>
-  {t.faqContactText || "Still have questions? Contact us"}
-</Link>
+            <Link href="/contact" style={contactButtonStyle}>
+              {t.faqContactText || "Still have questions? Contact us"}
+            </Link>
           </div>
         </div>
       </section>
+
+      {/* Add skeleton animation styles */}
+      <style jsx>{`
+        .skeleton-text {
+          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+          background-size: 200% 100%;
+          animation: skeleton-loading 1.5s infinite;
+          border-radius: 4px;
+        }
+        @keyframes skeleton-loading {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
 
       {/* Three Column Section (Services | Environmental | Contact) – same as all pages */}
       <section style={threeColumnSectionStyle}>
@@ -139,7 +169,7 @@ export default function FAQPage() {
 // ========== STYLE CONSTANTS (matching other pages) ==========
 const heroSectionStyle: React.CSSProperties = {
   height: "400px",
-  backgroundImage: "url('homeslide/faqimage.jpg')", // change to your image or use a default
+  backgroundImage: "url('/homeslide/faqimage.jpg')",
   backgroundSize: "cover",
   backgroundPosition: "center",
   position: "relative",
@@ -284,4 +314,5 @@ const footerStyle: React.CSSProperties = {
 const footerContainerStyle: React.CSSProperties = {
   maxWidth: "1200px",
   margin: "0 auto",
+  fontSize: "0.9rem",
 };

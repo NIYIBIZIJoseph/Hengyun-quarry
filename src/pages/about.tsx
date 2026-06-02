@@ -50,6 +50,27 @@ function ImageModal({ imageUrl, alt, onClose }: { imageUrl: string; alt: string;
   );
 }
 
+// Skeleton Team Card Component
+function SkeletonTeamCard() {
+  return (
+    <div
+      style={{
+        backgroundColor: "white",
+        borderRadius: "12px",
+        overflow: "hidden",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+        textAlign: "center",
+        paddingBottom: "1rem",
+      }}
+    >
+      <div className="skeleton-image" style={{ height: "280px", width: "100%", backgroundColor: "#e5e7eb" }} />
+      <div className="skeleton-text" style={{ width: "60%", height: "20px", margin: "1rem auto 0.5rem" }} />
+      <div className="skeleton-text" style={{ width: "40%", height: "15px", margin: "0 auto 0.5rem" }} />
+      <div className="skeleton-text" style={{ width: "80%", height: "60px", margin: "0 auto" }} />
+    </div>
+  );
+}
+
 // Staff Card Component with hover state
 function StaffCard({ member, onImageClick }: { member: any; onImageClick: (url: string, name: string) => void }) {
   const [isHovered, setIsHovered] = useState(false);
@@ -146,6 +167,7 @@ export default function About() {
       })
       .catch(err => {
         console.error(err);
+        setTeam([]);
         setLoadingTeam(false);
       });
   }, []);
@@ -187,7 +209,11 @@ export default function About() {
         <div style={containerStyle}>
           <h2 style={sectionTitleStyle}>{t.staffTitle}</h2>
           {loadingTeam ? (
-            <p style={{ textAlign: 'center', fontSize: "1rem" }}>Loading team members...</p>
+            <div style={staffGridStyle}>
+              {[1, 2, 3, 4].map((i) => (
+                <SkeletonTeamCard key={i} />
+              ))}
+            </div>
           ) : team.length === 0 ? (
             <p style={{ textAlign: 'center', fontSize: "1rem" }}>No team members added yet.</p>
           ) : (
@@ -240,11 +266,30 @@ export default function About() {
           <p>{t.footerText}</p>
         </div>
       </footer>
+
+      {/* Add skeleton styles */}
+      <style jsx>{`
+        .skeleton-image {
+          background: linear-gradient(90deg, #e5e7eb 25%, #d1d5db 50%, #e5e7eb 75%);
+          background-size: 200% 100%;
+          animation: skeleton-loading 1.5s infinite;
+        }
+        .skeleton-text {
+          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+          background-size: 200% 100%;
+          animation: skeleton-loading 1.5s infinite;
+          border-radius: 4px;
+        }
+        @keyframes skeleton-loading {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+      `}</style>
     </div>
   );
 }
 
-// ========== STYLES ==========
+// ========== STYLES (keep your existing styles) ==========
 const heroSectionStyle: React.CSSProperties = {
   height: "500px",
   backgroundImage: "url('/operations/facility2.jpg')",
