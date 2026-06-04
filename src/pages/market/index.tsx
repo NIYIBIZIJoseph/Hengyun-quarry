@@ -481,8 +481,8 @@ export default function MarketHome() {
             <h3 style={columnHeadingStyle}>{t.contactUsHeading}</h3>
             <address style={contactAddressStyle}>
               <div>{(t.address || "").split('\n').map((line, i) => <span key={i}>{line}<br /></span>)}</div>
-              <p><strong>{t.phoneLabel}:</strong> {t.phone}</p>
-              <p><strong>{t.emailLabel}:</strong> {t.email}</p>
+              <p><strong>{t.phoneLabel}:</strong> 0786592766</p>
+              <p><strong>{t.emailLabel}:</strong> hengyunquarry@gmail.com</p>
             </address>
           </div>
         </div>

@@ -431,8 +431,8 @@ export default function Home() {
             <h3 style={{ fontSize: "1.6rem", marginBottom: "1rem", color: "#1f2937", borderLeft: "4px solid #f59e0b", paddingLeft: "0.75rem", fontWeight: "700" }}>{t.contactUsHeading}</h3>
             <address style={{ fontStyle: "normal", color: "#fbfcfe", fontSize: "1rem", lineHeight: "1.6" }}>
               <div>{(t.address || "").split('\n').map((line, i) => <span key={i}>{line}<br /></span>)}</div>
-              <p><strong>{t.phoneLabel}:</strong> {t.phone}</p>
-              <p><strong>{t.emailLabel}:</strong> {t.email}</p>
+              <p><strong>{t.phoneLabel}:</strong> 0786592766</p>
+              <p><strong>{t.emailLabel}:</strong> hengyunquarry@gmail.com</p>
             </address>
           </div>
         </div>
