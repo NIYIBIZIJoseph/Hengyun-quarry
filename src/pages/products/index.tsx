@@ -6,7 +6,21 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/data/translations";
 import PublicHeader from "@/components/PublicHeader";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSearchPlus } from "@fortawesome/free-solid-svg-icons";
+import { faSearchPlus, faArrowRight } from "@fortawesome/free-solid-svg-icons";
+
+// ========== DESIGN TOKENS ==========
+const COLORS = {
+  primary: "#f59e0b",
+  primaryDark: "#d97706",
+  textPrimary: "#111827",
+  textSecondary: "#4b5563",
+  textMuted: "#6b7280",
+  bgWhite: "#ffffff",
+  bgGray: "#f9fafb",
+  border: "#e5e7eb",
+  shadow: "0 1px 3px rgba(0,0,0,0.06)",
+  shadowHover: "0 8px 25px rgba(0,0,0,0.08)",
+};
 
 // Image Modal Component
 function ImageModal({ imageUrl, alt, onClose }: { imageUrl: string; alt: string; onClose: () => void }) {
@@ -27,7 +41,7 @@ function ImageModal({ imageUrl, alt, onClose }: { imageUrl: string; alt: string;
       }}
       onClick={onClose}
     >
-      <div style={{ maxWidth: "90vw", maxHeight: "90vh" }}>
+      <div style={{ maxWidth: "90vw", maxHeight: "90vh", position: "relative" }}>
         <img src={imageUrl} alt={alt} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
         <button
           onClick={onClose}
@@ -42,6 +56,14 @@ function ImageModal({ imageUrl, alt, onClose }: { imageUrl: string; alt: string;
             height: "40px",
             fontSize: "20px",
             cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "scale(1.1)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
           }}
         >
           ×
@@ -60,9 +82,13 @@ function ProductItem({ product, onImageClick, viewDetailsText }: { product: any;
       style={{
         display: "flex",
         gap: "1.5rem",
-        marginBottom: "2rem",
-        paddingBottom: "1rem",
-        borderBottom: "1px solid #e5e7eb",
+        marginBottom: "1.5rem",
+        padding: "1.25rem",
+        borderRadius: "12px",
+        backgroundColor: isHovered ? COLORS.bgWhite : "transparent",
+        boxShadow: isHovered ? COLORS.shadowHover : "none",
+        transition: "all 0.3s ease",
+        border: `1px solid ${isHovered ? COLORS.border : "transparent"}`,
         alignItems: "center",
       }}
       onMouseEnter={() => setIsHovered(true)}
@@ -73,9 +99,9 @@ function ProductItem({ product, onImageClick, viewDetailsText }: { product: any;
           position: "relative",
           overflow: "hidden",
           cursor: "pointer",
-          borderRadius: "8px",
-          width: "120px",
-          height: "120px",
+          borderRadius: "10px",
+          width: "130px",
+          height: "130px",
           flexShrink: 0,
         }}
         onClick={() => onImageClick(product.img, product.title)}
@@ -88,7 +114,7 @@ function ProductItem({ product, onImageClick, viewDetailsText }: { product: any;
             height: "100%",
             objectFit: "cover",
             transition: "transform 0.3s ease",
-            transform: isHovered ? "scale(1.05)" : "scale(1)",
+            transform: isHovered ? "scale(1.08)" : "scale(1)",
           }}
           onError={(e) => { e.currentTarget.src = "/products/placeholder.jpg"; }}
         />
@@ -99,7 +125,7 @@ function ProductItem({ product, onImageClick, viewDetailsText }: { product: any;
             left: 0,
             width: "100%",
             height: "100%",
-            backgroundColor: "rgba(245, 158, 11, 0.7)",
+            backgroundColor: "rgba(245, 158, 11, 0.75)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -123,9 +149,51 @@ function ProductItem({ product, onImageClick, viewDetailsText }: { product: any;
         </div>
       </div>
       <div style={{ flex: 1 }}>
-        <h3 style={{ fontSize: "1.5rem", marginBottom: "0.5rem", color: "#1f2937", fontWeight: "600" }}>{product.title}</h3>
-        <p style={{ fontSize: "1rem", color: "#4b5563", marginBottom: "0.75rem", lineHeight: "1.5" }}>{product.desc}</p>
-        <Link href={`/products/${product.id}`} style={viewDetailsButtonStyle}>{viewDetailsText}</Link>
+        <h3 style={{ 
+          fontSize: "1.3rem", 
+          marginBottom: "0.25rem", 
+          color: COLORS.textPrimary, 
+          fontWeight: "600" 
+        }}>
+          {product.title}
+        </h3>
+        <p style={{ 
+          fontSize: "0.95rem", 
+          color: COLORS.textSecondary, 
+          marginBottom: "0.75rem", 
+          lineHeight: "1.5" 
+        }}>
+          {product.desc}
+        </p>
+        <Link 
+          href={`/products/${product.id}`} 
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            backgroundColor: COLORS.primary,
+            color: "white",
+            padding: "0.5rem 1.2rem",
+            borderRadius: "8px",
+            textDecoration: "none",
+            fontWeight: "500",
+            fontSize: "0.85rem",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = COLORS.primaryDark;
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow = COLORS.shadowHover;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = COLORS.primary;
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        >
+          {viewDetailsText}
+          <FontAwesomeIcon icon={faArrowRight} style={{ fontSize: "0.7rem" }} />
+        </Link>
       </div>
     </div>
   );
@@ -203,9 +271,33 @@ export default function ProductsPage() {
       <section style={threePointsSectionStyle}>
         <div style={containerStyle}>
           <div style={threePointsGridStyle}>
-            <div style={pointCardStyle}><h3 style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>{t.goodPriceTitle}</h3><p style={{ fontSize: "0.95rem" }}>{t.goodPriceDesc}</p></div>
-            <div style={pointCardStyle}><h3 style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>{t.bestQualityTitle}</h3><p style={{ fontSize: "0.95rem" }}>{t.bestQualityDesc}</p></div>
-            <div style={pointCardStyle}><h3 style={{ fontSize: "1.3rem", marginBottom: "0.5rem" }}>{t.efficientTitle}</h3><p style={{ fontSize: "0.95rem" }}>{t.efficientDesc}</p></div>
+            <div style={pointCardStyle}>
+              <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>💰</div>
+              <h3 style={{ fontSize: "1.2rem", marginBottom: "0.5rem", color: COLORS.textPrimary }}>
+                {t.goodPriceTitle}
+              </h3>
+              <p style={{ fontSize: "0.9rem", color: COLORS.textSecondary, lineHeight: "1.6" }}>
+                {t.goodPriceDesc}
+              </p>
+            </div>
+            <div style={pointCardStyle}>
+              <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>⭐</div>
+              <h3 style={{ fontSize: "1.2rem", marginBottom: "0.5rem", color: COLORS.textPrimary }}>
+                {t.bestQualityTitle}
+              </h3>
+              <p style={{ fontSize: "0.9rem", color: COLORS.textSecondary, lineHeight: "1.6" }}>
+                {t.bestQualityDesc}
+              </p>
+            </div>
+            <div style={pointCardStyle}>
+              <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🚚</div>
+              <h3 style={{ fontSize: "1.2rem", marginBottom: "0.5rem", color: COLORS.textPrimary }}>
+                {t.efficientTitle}
+              </h3>
+              <p style={{ fontSize: "0.9rem", color: COLORS.textSecondary, lineHeight: "1.6" }}>
+                {t.efficientDesc}
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -213,14 +305,32 @@ export default function ProductsPage() {
       {/* Sand Products */}
       <section id="sand" style={sectionStyle}>
         <div style={containerStyle}>
-          <h2 style={sectionTitleStyle}>{t.sandProductsTitle}</h2>
+          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+            <span style={{
+              display: "inline-block",
+              background: `${COLORS.primary}15`,
+              color: COLORS.primary,
+              padding: "0.2rem 1rem",
+              borderRadius: "20px",
+              fontSize: "0.8rem",
+              fontWeight: "600",
+              letterSpacing: "0.5px",
+              textTransform: "uppercase",
+            }}>
+              {t.sand || "Sand"}
+            </span>
+            <h2 style={sectionTitleStyle}>{t.sandProductsTitle}</h2>
+          </div>
           <div style={productListStyle}>
             {sandProducts.map((product) => (
               <ProductItem key={product.id} product={product} onImageClick={openModal} viewDetailsText={t.viewDetails} />
             ))}
           </div>
           <div style={requestButtonWrapper}>
-            <Link href="/market/sand" style={requestButtonStyle}>{t.requestSandQuote}</Link>
+            <Link href="/market/sand" style={requestButtonStyle}>
+              {t.requestSandQuote}
+              <FontAwesomeIcon icon={faArrowRight} style={{ marginLeft: "0.5rem", fontSize: "0.8rem" }} />
+            </Link>
           </div>
         </div>
       </section>
@@ -228,14 +338,32 @@ export default function ProductsPage() {
       {/* Quarry Products */}
       <section id="quarry" style={sectionStyleAlt}>
         <div style={containerStyle}>
-          <h2 style={sectionTitleStyle}>{t.quarryProductsTitle}</h2>
+          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+            <span style={{
+              display: "inline-block",
+              background: `${COLORS.primary}15`,
+              color: COLORS.primary,
+              padding: "0.2rem 1rem",
+              borderRadius: "20px",
+              fontSize: "0.8rem",
+              fontWeight: "600",
+              letterSpacing: "0.5px",
+              textTransform: "uppercase",
+            }}>
+              {t.quarry || "Quarry"}
+            </span>
+            <h2 style={sectionTitleStyle}>{t.quarryProductsTitle}</h2>
+          </div>
           <div style={productListStyle}>
             {quarryProducts.map((product) => (
               <ProductItem key={product.id} product={product} onImageClick={openModal} viewDetailsText={t.viewDetails} />
             ))}
           </div>
           <div style={requestButtonWrapper}>
-            <Link href="/market/quarry" style={requestButtonStyle}>{t.requestQuarryQuote}</Link>
+            <Link href="/market/quarry" style={requestButtonStyle}>
+              {t.requestQuarryQuote}
+              <FontAwesomeIcon icon={faArrowRight} style={{ marginLeft: "0.5rem", fontSize: "0.8rem" }} />
+            </Link>
           </div>
         </div>
       </section>
@@ -247,7 +375,10 @@ export default function ProductsPage() {
             <h3 style={columnHeadingStyle}>{t.servicesTitle}</h3>
             <ul style={servicesListSingleStyle}>
               {(t.servicesList || []).map((service, idx) => (
-                <li key={idx} style={serviceItemStyle}>{service}</li>
+                <li key={idx} style={serviceItemStyle}>
+                  <span style={{ color: COLORS.primary, marginRight: "0.5rem" }}>▸</span>
+                  {service}
+                </li>
               ))}
             </ul>
           </div>
@@ -286,7 +417,7 @@ export default function ProductsPage() {
 
 // ========== STYLES ==========
 const heroSectionStyle: React.CSSProperties = {
-  height: "400px",
+  height: "450px",
   backgroundImage: "url('/products/product2.jpg')",
   backgroundSize: "cover",
   backgroundPosition: "center",
@@ -298,27 +429,30 @@ const heroOverlayStyle: React.CSSProperties = {
   left: 0,
   width: "100%",
   height: "100%",
-  backgroundColor: "rgba(0,0,0,0.5)",
+  backgroundColor: "rgba(0,0,0,0.55)",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
   justifyContent: "center",
   textAlign: "center",
+  padding: "2rem",
 };
 const heroHeadingStyle: React.CSSProperties = {
   color: "white",
-  fontSize: "3rem",
+  fontSize: "3.5rem",
   fontWeight: "700",
   marginBottom: "1rem",
+  textShadow: "0 2px 4px rgba(0,0,0,0.3)",
 };
 const heroSubStyle: React.CSSProperties = {
   color: "white",
   fontSize: "1.2rem",
   maxWidth: "700px",
+  opacity: 0.9,
 };
 const threePointsSectionStyle: React.CSSProperties = {
   padding: "4rem 2rem",
-  backgroundColor: "#f9fafb",
+  backgroundColor: COLORS.bgGray,
 };
 const threePointsGridStyle: React.CSSProperties = {
   display: "grid",
@@ -329,10 +463,12 @@ const threePointsGridStyle: React.CSSProperties = {
 };
 const pointCardStyle: React.CSSProperties = {
   textAlign: "center",
-  padding: "1.5rem",
-  backgroundColor: "white",
-  borderRadius: "8px",
-  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+  padding: "2rem 1.5rem",
+  backgroundColor: COLORS.bgWhite,
+  borderRadius: "12px",
+  boxShadow: COLORS.shadow,
+  transition: "all 0.3s ease",
+  cursor: "default",
 };
 const containerStyle: React.CSSProperties = {
   maxWidth: "1200px",
@@ -341,52 +477,43 @@ const containerStyle: React.CSSProperties = {
 };
 const sectionStyle: React.CSSProperties = {
   padding: "4rem 2rem",
-  backgroundColor: "white",
+  backgroundColor: COLORS.bgWhite,
 };
 const sectionStyleAlt: React.CSSProperties = {
   padding: "4rem 2rem",
-  backgroundColor: "#f9fafb",
+  backgroundColor: COLORS.bgGray,
 };
 const sectionTitleStyle: React.CSSProperties = {
-  fontSize: "2rem",
-  marginBottom: "2rem",
-  color: "#1f2937",
+  fontSize: "2.2rem",
+  marginBottom: "0.25rem",
+  color: COLORS.textPrimary,
   textAlign: "center",
   fontWeight: "700",
 };
 const productListStyle: React.CSSProperties = {
-  maxWidth: "800px",
+  maxWidth: "900px",
   margin: "0 auto",
-};
-const viewDetailsButtonStyle: React.CSSProperties = {
-  display: "inline-block",
-  backgroundColor: "transparent",
-  color: "#f59e0b",
-  border: "2px solid #f59e0b",
-  padding: "0.5rem 1.2rem",
-  borderRadius: "6px",
-  textDecoration: "none",
-  fontWeight: "500",
-  fontSize: "0.9rem",
-  transition: "all 0.2s",
 };
 const requestButtonWrapper: React.CSSProperties = {
   textAlign: "center",
-  marginTop: "2rem",
+  marginTop: "2.5rem",
 };
 const requestButtonStyle: React.CSSProperties = {
-  backgroundColor: "#f59e0b",
-  color: "#1f2937",
+  backgroundColor: COLORS.primary,
+  color: "white",
   padding: "0.75rem 2rem",
-  borderRadius: "8px",
+  borderRadius: "10px",
   textDecoration: "none",
-  fontWeight: "bold",
-  display: "inline-block",
+  fontWeight: "600",
+  display: "inline-flex",
+  alignItems: "center",
   fontSize: "1rem",
+  transition: "all 0.2s",
+  boxShadow: "0 2px 8px rgba(245, 158, 11, 0.3)",
 };
 const threeColumnSectionStyle: React.CSSProperties = {
   padding: "4rem 2rem",
-  backgroundColor: "#4d5a67",
+  backgroundColor: "#2d3748",
 };
 const threeColumnContainerStyle: React.CSSProperties = {
   maxWidth: "1200px",
@@ -404,13 +531,13 @@ const servicesListSingleStyle: React.CSSProperties = {
 };
 const serviceItemStyle: React.CSSProperties = {
   marginBottom: "0.5rem",
-  fontSize: "1rem",
-  color: "#f9fafd",
+  fontSize: "0.95rem",
+  color: "#e2e8f0",
 };
 const columnHeadingStyle: React.CSSProperties = {
-  fontSize: "1.6rem",
+  fontSize: "1.4rem",
   marginBottom: "1rem",
-  color: "#1f2937",
+  color: "white",
   borderLeft: "4px solid #f59e0b",
   paddingLeft: "0.75rem",
   fontWeight: "700",
@@ -422,15 +549,15 @@ const logoWrapperStyle: React.CSSProperties = {
   justifyContent: "center",
 };
 const environmentalHeadingStyle: React.CSSProperties = {
-  fontSize: "1.3rem",
+  fontSize: "1.2rem",
   marginBottom: "0.75rem",
-  color: "#f6f7f9",
+  color: "white",
   fontWeight: "600",
 };
 const environmentalTextStyle: React.CSSProperties = {
-  fontSize: "1rem",
-  lineHeight: "1.5",
-  color: "#f7f8f9",
+  fontSize: "0.95rem",
+  lineHeight: "1.6",
+  color: "#cbd5e1",
 };
 const contactColumnStyle: React.CSSProperties = {
   textAlign: "left",
@@ -438,19 +565,19 @@ const contactColumnStyle: React.CSSProperties = {
 };
 const contactAddressStyle: React.CSSProperties = {
   fontStyle: "normal",
-  color: "#fbfcfe",
-  fontSize: "1rem",
-  lineHeight: "1.6",
+  color: "#e2e8f0",
+  fontSize: "0.95rem",
+  lineHeight: "1.8",
 };
 const footerStyle: React.CSSProperties = {
-  backgroundColor: "#1f2937",
-  color: "#9ca3af",
+  backgroundColor: "#1a202c",
+  color: "#a0aec0",
   textAlign: "center",
-  padding: "2rem",
-  borderTop: "1px solid #374151",
+  padding: "1.5rem",
+  borderTop: "1px solid #2d3748",
 };
 const footerContainerStyle: React.CSSProperties = {
   maxWidth: "1200px",
   margin: "0 auto",
-  fontSize: "0.9rem",
+  fontSize: "0.85rem",
 };

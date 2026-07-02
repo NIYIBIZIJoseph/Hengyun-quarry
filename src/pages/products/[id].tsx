@@ -6,7 +6,22 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/data/translations";
 import PublicHeader from "@/components/PublicHeader";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSearchPlus } from "@fortawesome/free-solid-svg-icons";
+import { faSearchPlus, faArrowLeft, faCheckCircle } from "@fortawesome/free-solid-svg-icons";
+
+// ========== DESIGN TOKENS ==========
+const COLORS = {
+  primary: "#f59e0b",
+  primaryDark: "#d97706",
+  success: "#10b981",
+  textPrimary: "#111827",
+  textSecondary: "#4b5563",
+  textMuted: "#6b7280",
+  bgWhite: "#ffffff",
+  bgGray: "#f9fafb",
+  border: "#e5e7eb",
+  shadow: "0 1px 3px rgba(0,0,0,0.06)",
+  shadowHover: "0 8px 25px rgba(0,0,0,0.08)",
+};
 
 // Image Modal Component
 function ImageModal({ imageUrl, alt, onClose }: { imageUrl: string; alt: string; onClose: () => void }) {
@@ -27,7 +42,7 @@ function ImageModal({ imageUrl, alt, onClose }: { imageUrl: string; alt: string;
       }}
       onClick={onClose}
     >
-      <div style={{ maxWidth: "90vw", maxHeight: "90vh" }}>
+      <div style={{ maxWidth: "90vw", maxHeight: "90vh", position: "relative" }}>
         <img src={imageUrl} alt={alt} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
         <button
           onClick={onClose}
@@ -42,6 +57,14 @@ function ImageModal({ imageUrl, alt, onClose }: { imageUrl: string; alt: string;
             height: "40px",
             fontSize: "20px",
             cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "scale(1.1)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
           }}
         >
           ×
@@ -95,7 +118,28 @@ export default function ProductDetail() {
     return (
       <div>
         <PublicHeader />
-        <div style={{ padding: "4rem", textAlign: "center", fontSize: "1.2rem" }}>Product not found</div>
+        <div style={{ padding: "6rem 2rem", textAlign: "center" }}>
+          <h2 style={{ fontSize: "2rem", color: COLORS.textPrimary, marginBottom: "1rem" }}>
+            Product Not Found
+          </h2>
+          <p style={{ color: COLORS.textSecondary, marginBottom: "2rem" }}>
+            The product you're looking for doesn't exist or has been removed.
+          </p>
+          <Link 
+            href="/products" 
+            style={{
+              display: "inline-block",
+              backgroundColor: COLORS.primary,
+              color: "white",
+              padding: "0.75rem 2rem",
+              borderRadius: "8px",
+              textDecoration: "none",
+              fontWeight: "600",
+            }}
+          >
+            Back to Products
+          </Link>
+        </div>
       </div>
     );
   }
@@ -117,15 +161,41 @@ export default function ProductDetail() {
       {/* ========== PRODUCT DETAIL ========== */}
       <section style={detailSectionStyle}>
         <div style={containerStyle}>
-          <Link href="/products" style={backButtonStyle}>← {t.backToProducts}</Link>
+          <Link 
+            href="/products" 
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              marginBottom: "2rem",
+              color: COLORS.primary,
+              textDecoration: "none",
+              fontWeight: "500",
+              fontSize: "0.95rem",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = COLORS.primaryDark;
+              e.currentTarget.style.transform = "translateX(-4px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = COLORS.primary;
+              e.currentTarget.style.transform = "translateX(0)";
+            }}
+          >
+            <FontAwesomeIcon icon={faArrowLeft} /> {t.backToProducts}
+          </Link>
+
           <div style={detailCardStyle}>
             <div
               style={{
                 position: "relative",
                 overflow: "hidden",
                 cursor: "pointer",
-                borderRadius: "12px",
+                borderRadius: "16px",
                 marginBottom: "1.5rem",
+                width: "100%",
+                maxWidth: "500px",
               }}
               onMouseEnter={() => setIsImageHovered(true)}
               onMouseLeave={() => setIsImageHovered(false)}
@@ -136,10 +206,10 @@ export default function ProductDetail() {
                 alt={title}
                 style={{
                   width: "100%",
-                  maxWidth: "400px",
-                  borderRadius: "8px",
+                  height: "350px",
+                  borderRadius: "16px",
                   objectFit: "cover",
-                  transition: "transform 0.3s ease",
+                  transition: "transform 0.4s ease",
                   transform: isImageHovered ? "scale(1.05)" : "scale(1)",
                 }}
                 onError={(e) => {
@@ -154,21 +224,22 @@ export default function ProductDetail() {
                   left: 0,
                   width: "100%",
                   height: "100%",
-                  backgroundColor: "rgba(245, 158, 11, 0.7)",
+                  backgroundColor: "rgba(245, 158, 11, 0.75)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   opacity: isImageHovered ? 1 : 0,
                   transition: "opacity 0.3s ease",
+                  borderRadius: "16px",
                 }}
               >
                 <div
                   style={{
                     backgroundColor: "rgba(0, 0, 0, 0.5)",
                     borderRadius: "50%",
-                    padding: "12px",
+                    padding: "16px",
                     color: "white",
-                    fontSize: "1.5rem",
+                    fontSize: "1.8rem",
                     transition: "transform 0.2s ease",
                     transform: isImageHovered ? "scale(1.1)" : "scale(1)",
                   }}
@@ -177,14 +248,77 @@ export default function ProductDetail() {
                 </div>
               </div>
             </div>
-            <h1 style={detailTitleStyle}>{title}</h1>
-            <p style={detailDescStyle}>{desc}</p>
-            <div style={detailFullDescStyle}>
-              {fullDesc.split("\n").map((para: string, idx: number) => (
-                <p key={idx} style={{ marginBottom: "0.75rem" }}>{para}</p>
-              ))}
+
+            <div style={{ width: "100%", maxWidth: "800px", textAlign: "center" }}>
+              <span style={{
+                display: "inline-block",
+                background: `${COLORS.primary}15`,
+                color: COLORS.primary,
+                padding: "0.2rem 1rem",
+                borderRadius: "20px",
+                fontSize: "0.75rem",
+                fontWeight: "600",
+                letterSpacing: "0.5px",
+                textTransform: "uppercase",
+                marginBottom: "0.5rem",
+              }}>
+                Product Details
+              </span>
+              <h1 style={detailTitleStyle}>{title}</h1>
+              <p style={detailDescStyle}>{desc}</p>
+              <div style={detailFullDescStyle}>
+                {fullDesc.split("\n").map((para: string, idx: number) => (
+                  <p key={idx} style={{ marginBottom: "0.75rem" }}>{para}</p>
+                ))}
+              </div>
+
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.5rem",
+                marginBottom: "1.5rem",
+                padding: "0.75rem",
+                background: `${COLORS.success}10`,
+                borderRadius: "8px",
+                border: `1px solid ${COLORS.success}30`,
+              }}>
+                <FontAwesomeIcon icon={faCheckCircle} style={{ color: COLORS.success }} />
+                <span style={{ color: COLORS.textSecondary, fontSize: "0.9rem" }}>
+                  Premium quality guaranteed
+                </span>
+              </div>
+
+              <Link 
+                href="/contact" 
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  backgroundColor: COLORS.primary,
+                  color: "white",
+                  padding: "0.8rem 2.5rem",
+                  borderRadius: "10px",
+                  textDecoration: "none",
+                  fontWeight: "600",
+                  fontSize: "1.05rem",
+                  transition: "all 0.2s",
+                  boxShadow: "0 4px 12px rgba(245, 158, 11, 0.3)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = COLORS.primaryDark;
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(245, 158, 11, 0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = COLORS.primary;
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(245, 158, 11, 0.3)";
+                }}
+              >
+                {t.requestQuote}
+              </Link>
             </div>
-            <Link href="/contact" style={ctaButtonStyle}>{t.requestQuote}</Link>
           </div>
         </div>
       </section>
@@ -196,7 +330,10 @@ export default function ProductDetail() {
             <h3 style={columnHeadingStyle}>{t.servicesTitle}</h3>
             <ul style={servicesListSingleStyle}>
               {(t.servicesList || []).map((service: string, idx: number) => (
-                <li key={idx} style={serviceItemStyle}>{service}</li>
+                <li key={idx} style={serviceItemStyle}>
+                  <span style={{ color: COLORS.primary, marginRight: "0.5rem" }}>▸</span>
+                  {service}
+                </li>
               ))}
             </ul>
           </div>
@@ -244,27 +381,19 @@ const containerStyle: React.CSSProperties = {
   margin: "0 auto",
   padding: "0 1rem",
 };
-const backButtonStyle: React.CSSProperties = {
-  display: "inline-block",
-  marginBottom: "2rem",
-  color: "#f59e0b",
-  textDecoration: "none",
-  fontWeight: "500",
-  fontSize: "1rem",
-};
 const detailCardStyle: React.CSSProperties = {
   backgroundColor: "#f9fafb",
   padding: "2rem",
-  borderRadius: "12px",
-  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+  borderRadius: "16px",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
   textAlign: "center",
 };
 const detailTitleStyle: React.CSSProperties = {
-  fontSize: "2rem",
-  marginBottom: "1rem",
+  fontSize: "2.2rem",
+  marginBottom: "0.75rem",
   color: "#1f2937",
   fontWeight: "700",
 };
@@ -272,28 +401,19 @@ const detailDescStyle: React.CSSProperties = {
   fontSize: "1.1rem",
   color: "#4b5563",
   marginBottom: "1rem",
+  maxWidth: "700px",
 };
 const detailFullDescStyle: React.CSSProperties = {
   fontSize: "1rem",
   color: "#6b7280",
-  lineHeight: "1.7",
+  lineHeight: "1.8",
   marginBottom: "1.5rem",
   maxWidth: "800px",
   textAlign: "left",
 };
-const ctaButtonStyle: React.CSSProperties = {
-  backgroundColor: "#f59e0b",
-  color: "#1f2937",
-  padding: "0.75rem 1.5rem",
-  borderRadius: "8px",
-  textDecoration: "none",
-  fontWeight: "bold",
-  display: "inline-block",
-  fontSize: "1rem",
-};
 const threeColumnSectionStyle: React.CSSProperties = {
   padding: "4rem 2rem",
-  backgroundColor: "#4d5a67",
+  backgroundColor: "#2d3748",
 };
 const threeColumnContainerStyle: React.CSSProperties = {
   maxWidth: "1200px",
@@ -311,13 +431,13 @@ const servicesListSingleStyle: React.CSSProperties = {
 };
 const serviceItemStyle: React.CSSProperties = {
   marginBottom: "0.5rem",
-  fontSize: "1rem",
-  color: "#f9fafd",
+  fontSize: "0.95rem",
+  color: "#e2e8f0",
 };
 const columnHeadingStyle: React.CSSProperties = {
-  fontSize: "1.6rem",
+  fontSize: "1.4rem",
   marginBottom: "1rem",
-  color: "#1f2937",
+  color: "white",
   borderLeft: "4px solid #f59e0b",
   paddingLeft: "0.75rem",
   fontWeight: "700",
@@ -329,15 +449,15 @@ const logoWrapperStyle: React.CSSProperties = {
   justifyContent: "center",
 };
 const environmentalHeadingStyle: React.CSSProperties = {
-  fontSize: "1.3rem",
+  fontSize: "1.2rem",
   marginBottom: "0.75rem",
-  color: "#f6f7f9",
+  color: "white",
   fontWeight: "600",
 };
 const environmentalTextStyle: React.CSSProperties = {
-  fontSize: "1rem",
-  lineHeight: "1.5",
-  color: "#f7f8f9",
+  fontSize: "0.95rem",
+  lineHeight: "1.6",
+  color: "#cbd5e1",
 };
 const contactColumnStyle: React.CSSProperties = {
   textAlign: "left",
@@ -345,19 +465,19 @@ const contactColumnStyle: React.CSSProperties = {
 };
 const contactAddressStyle: React.CSSProperties = {
   fontStyle: "normal",
-  color: "#fbfcfe",
-  fontSize: "1rem",
-  lineHeight: "1.6",
+  color: "#e2e8f0",
+  fontSize: "0.95rem",
+  lineHeight: "1.8",
 };
 const footerStyle: React.CSSProperties = {
-  backgroundColor: "#1f2937",
-  color: "#9ca3af",
+  backgroundColor: "#1a202c",
+  color: "#a0aec0",
   textAlign: "center",
-  padding: "2rem",
-  borderTop: "1px solid #374151",
+  padding: "1.5rem",
+  borderTop: "1px solid #2d3748",
 };
 const footerContainerStyle: React.CSSProperties = {
   maxWidth: "1200px",
   margin: "0 auto",
-  fontSize: "0.9rem",
+  fontSize: "0.85rem",
 };

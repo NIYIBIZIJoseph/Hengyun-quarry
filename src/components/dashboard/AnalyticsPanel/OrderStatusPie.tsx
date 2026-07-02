@@ -6,6 +6,17 @@ import { useTranslation } from '@/hooks/useTranslation';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
+// ========== DESIGN TOKENS ==========
+const COLORS = {
+  primary: "#f59e0b",
+  success: "#10b981",
+  info: "#3b82f6",
+  danger: "#ef4444",
+  textMuted: "#9ca3af",
+  textPrimary: "#111827",
+  border: "#e5e7eb",
+};
+
 interface StatusData {
   status: string;
   count: number;
@@ -23,7 +34,6 @@ export default function OrderStatusPie() {
         const res = await fetch('/api/dashboard/order-status', { headers: getAuthHeaders() });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const result = await res.json();
-        console.log('Order status data:', result);
         setData(Array.isArray(result) ? result : []);
       } catch (err: unknown) {
         console.error('Error fetching order status:', err);
@@ -47,17 +57,29 @@ export default function OrderStatusPie() {
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'pending': return '#f59e0b';
-      case 'approved': return '#10b981';
-      case 'delivered': return '#3b82f6';
-      case 'cancelled': return '#dc2626';
+      case 'pending': return COLORS.primary;
+      case 'approved': return COLORS.success;
+      case 'delivered': return COLORS.info;
+      case 'cancelled': return COLORS.danger;
       default: return '#6b7280';
     }
   };
 
   if (loading) {
     return (
-      <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', textAlign: 'center', minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{
+        background: 'white',
+        padding: '1.25rem',
+        borderRadius: '12px',
+        textAlign: 'center',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        minHeight: '200px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#9ca3af',
+        fontSize: '0.85rem',
+      }}>
         {t('loadingChart') || 'Loading chart...'}
       </div>
     );
@@ -65,7 +87,19 @@ export default function OrderStatusPie() {
 
   if (error) {
     return (
-      <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', textAlign: 'center', color: '#dc2626', minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{
+        background: 'white',
+        padding: '1.25rem',
+        borderRadius: '12px',
+        textAlign: 'center',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        minHeight: '200px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#ef4444',
+        fontSize: '0.85rem',
+      }}>
         Error: {error}
       </div>
     );
@@ -73,7 +107,19 @@ export default function OrderStatusPie() {
 
   if (!data || data.length === 0) {
     return (
-      <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', textAlign: 'center', color: '#6b7280', minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{
+        background: 'white',
+        padding: '1.25rem',
+        borderRadius: '12px',
+        textAlign: 'center',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        minHeight: '200px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#9ca3af',
+        fontSize: '0.85rem',
+      }}>
         {t('noOrderData') || 'No order data available'}
       </div>
     );
@@ -87,8 +133,9 @@ export default function OrderStatusPie() {
       {
         data: data.map(item => item.count),
         backgroundColor: data.map(item => getStatusColor(item.status)),
-        borderWidth: 0,
-        hoverOffset: 4,
+        borderWidth: 2,
+        borderColor: 'white',
+        hoverOffset: 8,
       },
     ],
   };
@@ -96,15 +143,27 @@ export default function OrderStatusPie() {
   const options = {
     responsive: true,
     maintainAspectRatio: true,
+    cutout: '55%',
     plugins: {
       legend: {
         position: 'bottom' as const,
         labels: {
-          font: { size: 12 },
-          padding: 10,
+          usePointStyle: true,
+          padding: 12,
+          font: {
+            size: 11,
+          },
+          color: '#6b7280',
         },
       },
       tooltip: {
+        backgroundColor: 'white',
+        titleColor: '#111827',
+        bodyColor: '#6b7280',
+        borderColor: '#e5e7eb',
+        borderWidth: 1,
+        padding: 12,
+        cornerRadius: 8,
         callbacks: {
           label: function(context: any) {
             const label = context.label || '';
@@ -118,11 +177,22 @@ export default function OrderStatusPie() {
   };
 
   return (
-    <div style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-      <h4 style={{ marginBottom: '1rem', fontSize: '1rem', fontWeight: '600' }}>
-        {t('orderStatusDistribution') || 'Order Status Distribution'}
+    <div style={{
+      background: 'white',
+      borderRadius: '12px',
+      padding: '1.25rem',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+      transition: 'all 0.2s ease',
+    }}>
+      <h4 style={{
+        fontSize: '0.85rem',
+        fontWeight: '600',
+        color: '#111827',
+        margin: '0 0 0.75rem 0',
+      }}>
+        {t('orderStatusDistribution') || 'Order Status'}
       </h4>
-      <div style={{ maxWidth: '300px', margin: '0 auto' }}>
+      <div style={{ height: '220px' }}>
         <Pie data={chartData} options={options} />
       </div>
     </div>

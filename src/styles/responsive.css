@@ -1,51 +1,155 @@
-/* ========== RESPONSIVE OVERRIDES – ONLY FOR PUBLIC WEBSITE ========== */
-/* These selectors target elements that exist ONLY on public pages */
+/* ========== RESPONSIVE STYLES ========== */
+
+/* ===== Mobile First ===== */
 @media (max-width: 768px) {
-  .public-header,
-  .public-header * {
-    /* Fix for mobile header – but not affecting dashboard */
+  /* ===== Layout ===== */
+  .container {
+    padding-left: var(--spacing-4, 1rem);
+    padding-right: var(--spacing-4, 1rem);
   }
   
+  /* ===== Cards ===== */
+  .card {
+    padding: var(--spacing-4, 1rem);
+  }
+  
+  /* ===== Tables ===== */
+  .table th,
+  .table td {
+    padding: var(--spacing-2, 0.5rem);
+    font-size: var(--font-size-xs, 0.65rem);
+  }
+  
+  /* ===== KPI Values ===== */
+  .kpi-value {
+    font-size: var(--font-size-2xl, 1.5rem);
+  }
+  
+  /* ===== Grids ===== */
+  .grid-auto,
+  .grid-2,
+  .grid-3,
+  .grid-4 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* ===== Buttons ===== */
+  .btn {
+    padding: var(--spacing-2, 0.5rem) var(--spacing-4, 1rem);
+    font-size: var(--font-size-xs, 0.65rem);
+  }
+  
+  /* ===== Headers ===== */
+  h1 {
+    font-size: var(--font-size-2xl, 1.5rem);
+  }
+  
+  h2 {
+    font-size: var(--font-size-xl, 1.25rem);
+  }
+  
+  h3 {
+    font-size: var(--font-size-lg, 1.125rem);
+  }
+  
+  /* ===== Public Website ===== */
   .hero-section,
   .hero-slider,
   .carousel-container {
     margin-top: 0.5rem;
     padding-top: 0.5rem;
   }
-
-  h1, .hero-heading {
+  
+  .hero-heading {
     font-size: clamp(2rem, 6vw, 3.5rem);
   }
-
+  
   .hero-content p {
-    font-size: 1rem;
+    font-size: var(--font-size-md, 1rem);
     line-height: 1.4;
   }
-
+  
   .slider-arrow,
   .arrow-left,
   .arrow-right {
     width: 40px;
     height: 40px;
-    font-size: 1rem;
+    font-size: var(--font-size-md, 1rem);
   }
-
+  
   .cards-grid,
   .services-grid,
   .products-grid,
   .gallery-grid,
   .products-preview-grid {
     grid-template-columns: 1fr !important;
-    gap: 1.5rem !important;
+    gap: var(--spacing-6, 1.5rem) !important;
   }
-
+  
   .footer-grid {
     grid-template-columns: 1fr !important;
     text-align: center;
-    gap: 1.5rem;
+    gap: var(--spacing-6, 1.5rem);
   }
+}
 
-  body, html {
-    overflow-x: hidden;
+/* ===== Tablet ===== */
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* ===== Grids ===== */
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  /* ===== Container ===== */
+  .container {
+    padding-left: var(--spacing-6, 1.5rem);
+    padding-right: var(--spacing-6, 1.5rem);
+  }
+}
+
+/* ===== Desktop ===== */
+@media (min-width: 1025px) {
+  /* ===== Container ===== */
+  .container {
+    padding-left: var(--spacing-8, 2rem);
+    padding-right: var(--spacing-8, 2rem);
+  }
+}
+
+/* ===== Print ===== */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .card {
+    box-shadow: none !important;
+    border: 1px solid var(--border-color, #e5e7eb);
+  }
+}
+
+/* ===== Reduced Motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===== High Contrast ===== */
+@media (prefers-contrast: high) {
+  .card {
+    border: 2px solid var(--border-color, #e5e7eb);
+  }
+  
+  .btn-primary {
+    background: var(--color-primary-dark, #d97706);
+    color: white;
   }
 }

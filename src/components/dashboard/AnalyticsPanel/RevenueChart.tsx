@@ -8,13 +8,23 @@ import {
   Title,
   Tooltip,
   Legend,
-  Filler, // ✅ Added Filler plugin
+  Filler,
 } from 'chart.js';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { useTranslation } from '@/hooks/useTranslation';
 
-// ✅ Register Filler plugin
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, Filler);
+
+// ========== DESIGN TOKENS ==========
+const COLORS = {
+  primary: "#f59e0b",
+  primaryLight: "rgba(245, 158, 11, 0.6)",
+  primaryBorder: "#f59e0b",
+  textMuted: "#9ca3af",
+  textPrimary: "#111827",
+  border: "#e5e7eb",
+  bgGray: "#f9fafb",
+};
 
 export default function RevenueChart() {
   const { t } = useTranslation();
@@ -42,9 +52,11 @@ export default function RevenueChart() {
     datasets: [{
       label: t('revenueChartLabel') || 'Revenue (RWF)',
       data: data.values,
-      backgroundColor: 'rgba(245,158,11,0.6)',
-      borderColor: 'rgba(245,158,11,1)',
-      borderWidth: 1,
+      backgroundColor: COLORS.primaryLight,
+      borderColor: COLORS.primaryBorder,
+      borderWidth: 2,
+      borderRadius: 4,
+      hoverBackgroundColor: COLORS.primary,
     }],
   };
 
@@ -53,9 +65,16 @@ export default function RevenueChart() {
     maintainAspectRatio: true,
     plugins: {
       legend: {
-        position: 'top' as const,
+        display: false,
       },
       tooltip: {
+        backgroundColor: 'white',
+        titleColor: COLORS.textPrimary,
+        bodyColor: '#6b7280',
+        borderColor: COLORS.border,
+        borderWidth: 1,
+        padding: 12,
+        cornerRadius: 8,
         callbacks: {
           label: function(context: any) {
             let label = context.dataset.label || '';
@@ -66,11 +85,52 @@ export default function RevenueChart() {
         }
       }
     },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: COLORS.textMuted,
+          font: {
+            size: 10,
+          },
+        },
+      },
+      y: {
+        grid: {
+          color: 'rgba(0,0,0,0.05)',
+          drawBorder: false,
+        },
+        ticks: {
+          color: COLORS.textMuted,
+          font: {
+            size: 10,
+          },
+          callback: function(value: any) {
+            return value >= 1000 ? `${value / 1000}k` : value;
+          },
+        },
+        beginAtZero: true,
+      },
+    },
   };
 
   if (loading) {
     return (
-      <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
+      <div style={{ 
+        background: 'white', 
+        padding: '1.25rem', 
+        borderRadius: '12px', 
+        textAlign: 'center',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        minHeight: '200px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#9ca3af',
+        fontSize: '0.85rem',
+      }}>
         {t('loadingChart') || 'Loading chart...'}
       </div>
     );
@@ -78,16 +138,59 @@ export default function RevenueChart() {
 
   if (data.labels.length === 0) {
     return (
-      <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', textAlign: 'center', color: '#6b7280' }}>
+      <div style={{ 
+        background: 'white', 
+        padding: '1.25rem', 
+        borderRadius: '12px', 
+        textAlign: 'center',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        minHeight: '200px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#9ca3af',
+        fontSize: '0.85rem',
+      }}>
         {t('noDataAvailable') || 'No data available'}
       </div>
     );
   }
 
   return (
-    <div style={{ background: 'white', padding: '1rem', borderRadius: '12px' }}>
-      <h4>{t('revenueTrend') || 'Revenue Trend'}</h4>
-      <Bar data={chartData} options={options} />
+    <div style={{
+      background: 'white',
+      borderRadius: '12px',
+      padding: '1.25rem',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+      transition: 'all 0.2s ease',
+    }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '0.75rem',
+      }}>
+        <h4 style={{
+          fontSize: '0.85rem',
+          fontWeight: '600',
+          color: '#111827',
+          margin: 0,
+        }}>
+          {t('revenueTrend') || 'Revenue Trend'}
+        </h4>
+        <span style={{
+          fontSize: '0.65rem',
+          color: '#10b981',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.25rem',
+        }}>
+          ↑ 12% vs last month
+        </span>
+      </div>
+      <div style={{ height: '220px' }}>
+        <Bar data={chartData} options={options} />
+      </div>
     </div>
   );
 }

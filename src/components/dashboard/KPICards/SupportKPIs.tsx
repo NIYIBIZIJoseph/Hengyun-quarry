@@ -4,6 +4,105 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTicketAlt, faFire, faClock } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
 
+// ========== CLEAN DESIGN TOKENS ==========
+const COLORS = {
+  primary: "#f59e0b",      // Your brand gold
+  danger: "#ef4444",       // Only for urgent/negative
+};
+
+function KpiCard({ 
+  label, 
+  value, 
+  sub, 
+  icon, 
+  color = COLORS.primary,
+  trend
+}: { 
+  label: string; 
+  value: string | number; 
+  sub?: string; 
+  icon: any; 
+  color?: string;
+  trend?: number;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const isPositive = trend && trend > 0;
+
+  return (
+    <div
+      style={{
+        background: "white",
+        borderRadius: "12px",
+        padding: "1.25rem",
+        boxShadow: isHovered 
+          ? "0 4px 12px rgba(0,0,0,0.08)" 
+          : "0 1px 3px rgba(0,0,0,0.05)",
+        transition: "all 0.2s ease",
+        transform: isHovered ? "translateY(-2px)" : "translateY(0)",
+        borderLeft: `3px solid ${color}`,
+        cursor: "pointer",
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <FontAwesomeIcon 
+          icon={icon} 
+          style={{ 
+            color: color, 
+            fontSize: "0.85rem",
+            width: "16px"
+          }} 
+        />
+        <span style={{ 
+          fontSize: "0.7rem", 
+          color: "#6b7280",
+          textTransform: "uppercase",
+          letterSpacing: "0.3px",
+          fontWeight: "600"
+        }}>
+          {label}
+        </span>
+      </div>
+      
+      <div style={{ 
+        fontSize: "1.75rem", 
+        fontWeight: "700", 
+        color: "#111827",
+        marginTop: "0.25rem"
+      }}>
+        {value}
+      </div>
+      
+      {sub && (
+        <div style={{ 
+          fontSize: "0.7rem", 
+          color: "#9ca3af",
+          marginTop: "0.1rem"
+        }}>
+          {sub}
+        </div>
+      )}
+      
+      {trend !== undefined && (
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "4px",
+          fontSize: "0.7rem",
+          color: isPositive ? "#10b981" : COLORS.danger,
+          marginTop: "0.4rem",
+          fontWeight: "500"
+        }}>
+          <span>{isPositive ? "↑" : "↓"}</span>
+          <span>{Math.abs(trend)}%</span>
+          <span style={{ color: "#9ca3af", fontWeight: "400" }}>vs last month</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SupportKPIs() {
   const { t } = useTranslation();
   const [stats, setStats] = useState({ openTickets: 0, urgentTickets: 0, avgResponseTime: '2.4h' });
@@ -19,23 +118,36 @@ export default function SupportKPIs() {
       .catch(console.error);
   }, []);
 
-  const cards = [
-    { label: t('openTickets'), value: stats.openTickets, sub: t('needsReply'), icon: faTicketAlt, color: '#fef3c7' },
-    { label: t('urgent'), value: stats.urgentTickets, sub: t('highPriority'), icon: faFire, color: '#fee2e2' },
-    { label: t('avgResponse'), value: stats.avgResponseTime, sub: t('firstReply'), icon: faClock, color: '#fff' },
-  ];
-
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
-      {cards.map((card, idx) => (
-        <div key={idx} style={{ background: card.color, padding: '0.75rem', borderRadius: '12px' }}>
-          <div style={{ fontSize: '0.75rem', color: '#4b5563' }}>
-            <FontAwesomeIcon icon={card.icon} fixedWidth /> {card.label}
-          </div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 'bold' }}>{card.value}</div>
-          {card.sub && <div style={{ fontSize: '0.7rem', color: '#6b7280' }}>{card.sub}</div>}
-        </div>
-      ))}
+    <div style={{ 
+      display: 'grid', 
+      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
+      gap: '1rem' 
+    }}>
+      <KpiCard
+        label={t('openTickets') || "Open Tickets"}
+        value={stats.openTickets}
+        sub={t('needsReply') || "needs reply"}
+        icon={faTicketAlt}
+        color={COLORS.primary}
+        trend={7}
+      />
+      <KpiCard
+        label={t('urgent') || "Urgent"}
+        value={stats.urgentTickets}
+        sub={t('highPriority') || "high priority"}
+        icon={faFire}
+        color={COLORS.danger}
+        trend={0}
+      />
+      <KpiCard
+        label={t('avgResponse') || "Avg Response"}
+        value={stats.avgResponseTime}
+        sub={t('firstReply') || "first reply"}
+        icon={faClock}
+        color={COLORS.primary}
+        trend={-0.5}
+      />
     </div>
   );
 }

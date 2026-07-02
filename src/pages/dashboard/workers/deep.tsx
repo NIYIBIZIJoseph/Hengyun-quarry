@@ -6,9 +6,26 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faPlus, faEdit, faTrashAlt, faEye, faFileExport, faPrint,
   faUser, faCamera, faCheckCircle, faTimesCircle,
-  faUpload, faSave, faTimes, faSearch
+  faUpload, faSave, faTimes, faSearch, faArrowLeft,
+  faBuilding, faPhoneAlt, faEnvelope, faMoneyBillWave, faCalendarAlt
 } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
+
+// ========== CLEAN DESIGN TOKENS ==========
+const COLORS = {
+  primary: "#f59e0b",
+  primaryDark: "#d97706",
+  success: "#10b981",
+  danger: "#ef4444",
+  info: "#3b82f6",
+  textPrimary: "#111827",
+  textSecondary: "#6b7280",
+  textMuted: "#9ca3af",
+  bgGray: "#f9fafb",
+  border: "#e5e7eb",
+  shadow: "0 1px 3px rgba(0,0,0,0.06)",
+  shadowHover: "0 8px 25px rgba(0,0,0,0.08)",
+};
 
 interface Department {
   id: number;
@@ -27,6 +44,184 @@ interface Worker {
   location: string;
   image_url: string;
   is_active: boolean;
+}
+
+// ========== KPI CARD ==========
+function KpiCard({ title, value, icon, color = COLORS.primary }: { 
+  title: string; 
+  value: string | number; 
+  icon: any; 
+  color?: string;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div
+      style={{
+        background: 'white',
+        padding: '1rem 1.25rem',
+        borderRadius: '12px',
+        boxShadow: isHovered ? COLORS.shadowHover : COLORS.shadow,
+        transition: 'all 0.3s ease',
+        transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
+        borderLeft: `3px solid ${color}`,
+        cursor: 'default',
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <FontAwesomeIcon icon={icon} style={{ color, fontSize: '0.8rem' }} />
+        <span style={{ fontSize: '0.7rem', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+          {title}
+        </span>
+      </div>
+      <div style={{ fontSize: '1.5rem', fontWeight: '700', color: COLORS.textPrimary, marginTop: '0.25rem' }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+// ========== WORKER ROW ==========
+function WorkerRow({ 
+  worker, 
+  onEdit, 
+  onDelete,
+  onView
+}: { 
+  worker: Worker; 
+  onEdit: (worker: Worker) => void; 
+  onDelete: (id: number) => void;
+  onView: (id: number) => void;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  const { t } = useTranslation();
+
+  return (
+    <tr
+      style={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        backgroundColor: isHovered ? COLORS.bgGray : 'transparent',
+        transition: 'all 0.2s ease',
+        cursor: 'pointer',
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={() => onView(worker.id)}
+    >
+      <td style={{ padding: '0.75rem 1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {worker.image_url ? (
+            <img src={worker.image_url} alt={worker.full_name} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+          ) : (
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: `${COLORS.primary}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.primary }}>
+              <FontAwesomeIcon icon={faUser} style={{ fontSize: '0.7rem' }} />
+            </div>
+          )}
+          <span style={{ fontWeight: '500', fontSize: '0.85rem', color: COLORS.textPrimary }}>
+            {worker.full_name}
+          </span>
+        </div>
+      </td>
+      <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', color: COLORS.textSecondary }}>
+        {worker.phone || '-'}
+      </td>
+      <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', color: COLORS.textSecondary }}>
+        {worker.department_name || '-'}
+      </td>
+      <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', fontWeight: '500', color: COLORS.primary }}>
+        {worker.salary?.toLocaleString() || '-'}
+      </td>
+      <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: COLORS.textSecondary }}>
+        {worker.join_date ? new Date(worker.join_date).toLocaleDateString() : '-'}
+      </td>
+      <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+        <span style={{
+          background: worker.is_active ? `${COLORS.success}15` : `${COLORS.danger}15`,
+          color: worker.is_active ? COLORS.success : COLORS.danger,
+          padding: '0.2rem 0.6rem',
+          borderRadius: '20px',
+          fontSize: '0.7rem',
+          fontWeight: '500',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.2rem',
+        }}>
+          <FontAwesomeIcon icon={worker.is_active ? faCheckCircle : faTimesCircle} style={{ fontSize: '0.4rem' }} />
+          {worker.is_active ? t('active') || 'Active' : t('inactive') || 'Inactive'}
+        </span>
+      </td>
+      <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', gap: '0.3rem', justifyContent: 'center' }}>
+          <button
+            onClick={() => onEdit(worker)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: COLORS.info,
+              cursor: 'pointer',
+              padding: '0.2rem 0.5rem',
+              borderRadius: '6px',
+              transition: 'all 0.2s',
+              fontSize: '0.8rem',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = `${COLORS.info}15`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            <FontAwesomeIcon icon={faEdit} />
+          </button>
+          <button
+            onClick={() => onDelete(worker.id)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: COLORS.danger,
+              cursor: 'pointer',
+              padding: '0.2rem 0.5rem',
+              borderRadius: '6px',
+              transition: 'all 0.2s',
+              fontSize: '0.8rem',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = `${COLORS.danger}15`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            <FontAwesomeIcon icon={faTrashAlt} />
+          </button>
+          <Link href={`/dashboard/workers/${worker.id}`}>
+            <button
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: COLORS.primary,
+                cursor: 'pointer',
+                padding: '0.2rem 0.5rem',
+                borderRadius: '6px',
+                transition: 'all 0.2s',
+                fontSize: '0.8rem',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = `${COLORS.primary}15`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <FontAwesomeIcon icon={faEye} />
+            </button>
+          </Link>
+        </div>
+      </td>
+    </tr>
+  );
 }
 
 export default function DeepWorkers() {
@@ -248,125 +443,611 @@ export default function DeepWorkers() {
     printWindow.print();
   };
 
-  if (loading) return <DashboardLayout>{t('loadingWorkers')}</DashboardLayout>;
+  // FIXED: Proper salary calculation
+  const activeCount = workers.filter(w => w.is_active).length;
+  const inactiveCount = workers.filter(w => !w.is_active).length;
+  
+  // FIX: Properly sum salaries with number conversion
+  const totalSalary = workers.reduce((sum, w) => {
+    const salary = typeof w.salary === 'number' ? w.salary : parseFloat(w.salary) || 0;
+    return sum + salary;
+  }, 0);
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: COLORS.textMuted }}>
+          {t('loadingWorkers') || 'Loading workers...'}
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <h1 style={{ fontSize: '1.5rem' }}>{t('deepSeek')}</h1>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={exportToCSV} style={{ background: '#10b981', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>
-            <FontAwesomeIcon icon={faFileExport} /> {t('exportCSV')}
-          </button>
-          <button onClick={printWorkers} style={{ background: '#dc2626', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>
-            <FontAwesomeIcon icon={faPrint} /> {t('printPDF')}
-          </button>
-          <button onClick={() => { setEditingWorker(null); setForm({ full_name: '', phone: '', email: '', department_id: '', salary: '', join_date: '', location: '', image_url: '', is_active: true }); setShowModal(true); }} style={{ background: '#f59e0b', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>
-            <FontAwesomeIcon icon={faPlus} /> {t('addWorker')}
-          </button>
-        </div>
-      </div>
-
-      {/* Search and Filter */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <FontAwesomeIcon icon={faSearch} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
-          <input type="text" placeholder={t('searchByNamePhone')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ padding: '8px 8px 8px 32px', width: '100%', border: '1px solid #ccc', borderRadius: '6px' }} />
-        </div>
-        <select value={departmentFilter} onChange={e => setDepartmentFilter(e.target.value)} style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '6px' }}>
-          <option value="all">{t('allDepartments')}</option>
-          {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
-      </div>
-
-      {error && <div style={{ background: '#fee2e2', color: '#b91c1c', padding: '10px', borderRadius: '6px', marginBottom: '1rem' }}><FontAwesomeIcon icon={faTimesCircle} /> {error}</div>}
-
-      {filteredWorkers.length === 0 ? (
-        <p>{t('noWorkersFound')}</p>
-      ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '12px', overflow: 'hidden' }}>
-            <thead style={{ background: '#f3f4f6' }}>
-              <tr>
-                <th>{t('image')}</th><th>{t('name')}</th><th>{t('phone')}</th><th>{t('department')}</th><th>{t('salary')}</th><th>{t('joinDate')}</th><th>{t('location')}</th><th>{t('status')}</th><th>{t('actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredWorkers.map(w => (
-                <tr key={w.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  <td style={{ padding: '12px' }}>
-                    {w.image_url ? 
-                      <img src={w.image_url} width="40" height="40" style={{ borderRadius: '50%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} /> 
-                      : <FontAwesomeIcon icon={faUser} size="lg" />}
-                  </td>
-                  <td style={{ padding: '12px' }}>{w.full_name}</td>
-                  <td style={{ padding: '12px' }}>{w.phone || '-'}</td>
-                  <td style={{ padding: '12px' }}>{w.department_name || '-'}</td>
-                  <td style={{ padding: '12px' }}>{w.salary?.toLocaleString() || '-'}</td>
-                  <td style={{ padding: '12px' }}>{w.join_date ? new Date(w.join_date).toLocaleDateString() : '-'}</td>
-                  <td style={{ padding: '12px' }}>{w.location || '-'}</td>
-                  <td style={{ padding: '12px' }}>
-                    <span style={{ background: w.is_active ? '#10b981' : '#6b7280', color: 'white', padding: '4px 8px', borderRadius: '20px', fontSize: '0.75rem' }}>
-                      {w.is_active ? <><FontAwesomeIcon icon={faCheckCircle} /> {t('active')}</> : <><FontAwesomeIcon icon={faTimesCircle} /> {t('inactive')}</>}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px' }}>
-                    <button onClick={() => openEdit(w)} style={{ marginRight: '8px', background: '#3b82f6', color: 'white', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer' }}>
-                      <FontAwesomeIcon icon={faEdit} /> {t('edit')}
-                    </button>
-                    <button onClick={() => handleDeactivate(w.id)} style={{ background: '#dc2626', color: 'white', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer' }}>
-                      <FontAwesomeIcon icon={faTrashAlt} /> {t('delete')}
-                    </button>
-                    <Link href={`/dashboard/workers/${w.id}`}>
-                      <button style={{ background: '#8b5cf6', color: 'white', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', marginLeft: '8px' }}>
-                        <FontAwesomeIcon icon={faEye} /> {t('view')}
-                      </button>
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Modal for Add/Edit */}
-      {showModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '550px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2>{editingWorker ? t('editWorker') : t('addWorker')}</h2>
-            <form onSubmit={handleSubmit}>
-              <input type="text" placeholder={t('fullName')} value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} required style={{ width: '100%', marginBottom: '12px', padding: '8px' }} />
-              <input type="tel" placeholder={t('phone')} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={{ width: '100%', marginBottom: '12px', padding: '8px' }} />
-              <input type="email" placeholder={t('email')} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} style={{ width: '100%', marginBottom: '12px', padding: '8px' }} />
-              <select value={form.department_id} onChange={e => setForm({ ...form, department_id: e.target.value })} style={{ width: '100%', marginBottom: '12px', padding: '8px' }}>
-                <option value="">{t('selectDepartment')}</option>
-                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-              <input type="number" step="0.01" placeholder={t('salary')} value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} style={{ width: '100%', marginBottom: '12px', padding: '8px' }} />
-              <input type="date" placeholder={t('joinDate')} value={form.join_date} onChange={e => setForm({ ...form, join_date: e.target.value })} style={{ width: '100%', marginBottom: '12px', padding: '8px' }} />
-              <input type="text" placeholder={t('location')} value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} style={{ width: '100%', marginBottom: '12px', padding: '8px' }} />
-              <div style={{ marginBottom: '12px' }}>
-                <label>{t('profileImage')}</label>
-                <input type="file" accept="image/*" onChange={handleImageUpload} />
-                {uploading && <span><FontAwesomeIcon icon={faUpload} spin /> {t('uploading')}</span>}
-                {form.image_url && <img src={form.image_url} alt="Preview" style={{ width: '50px', height: '50px', borderRadius: '50%', marginTop: '8px' }} />}
-              </div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                <input type="checkbox" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} /> {t('active')}
-              </label>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                <button type="submit" disabled={uploading} style={{ padding: '8px 16px', background: '#f59e0b', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                  <FontAwesomeIcon icon={faSave} /> {t('save')}
-                </button>
-                <button type="button" onClick={() => setShowModal(false)} style={{ padding: '8px 16px', background: '#e5e7eb', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                  <FontAwesomeIcon icon={faTimes} /> {t('cancel')}
-                </button>
-              </div>
-            </form>
+      <div style={{ padding: '0 1rem' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: COLORS.textPrimary, margin: 0 }}>
+              <FontAwesomeIcon icon={faUser} style={{ color: COLORS.primary, marginRight: '0.5rem' }} />
+              {t('deepSeek') || 'Deep Seek'}
+            </h1>
+            <p style={{ fontSize: '0.85rem', color: COLORS.textSecondary, margin: '0.15rem 0 0 0' }}>
+              {t('fullWorkerManagement') || 'Full worker management – salary, documents, leave, performance'}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={exportToCSV}
+              style={{
+                padding: '0.5rem 1rem',
+                background: COLORS.success,
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#059669';
+                e.currentTarget.style.transform = 'scale(1.02)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = COLORS.success;
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              <FontAwesomeIcon icon={faFileExport} /> {t('exportCSV') || 'Export CSV'}
+            </button>
+            <button
+              onClick={printWorkers}
+              style={{
+                padding: '0.5rem 1rem',
+                background: COLORS.primary,
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = COLORS.primaryDark;
+                e.currentTarget.style.transform = 'scale(1.02)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = COLORS.primary;
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              <FontAwesomeIcon icon={faPrint} /> {t('printPDF') || 'Print PDF'}
+            </button>
+            <button
+              onClick={() => { setEditingWorker(null); setForm({ full_name: '', phone: '', email: '', department_id: '', salary: '', join_date: '', location: '', image_url: '', is_active: true }); setShowModal(true); }}
+              style={{
+                padding: '0.5rem 1rem',
+                background: COLORS.primary,
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                transition: 'all 0.2s',
+                boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = COLORS.primaryDark;
+                e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = COLORS.primary;
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(245, 158, 11, 0.3)';
+              }}
+            >
+              <FontAwesomeIcon icon={faPlus} /> {t('addWorker') || 'Add Worker'}
+            </button>
           </div>
         </div>
-      )}
+
+        {/* KPI Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          <KpiCard
+            title={t('totalWorkers') || 'Total Workers'}
+            value={workers.length}
+            icon={faUser}
+            color={COLORS.primary}
+          />
+          <KpiCard
+            title={t('active') || 'Active'}
+            value={activeCount}
+            icon={faCheckCircle}
+            color={COLORS.success}
+          />
+          <KpiCard
+            title={t('inactive') || 'Inactive'}
+            value={inactiveCount}
+            icon={faTimesCircle}
+            color={inactiveCount > 0 ? COLORS.danger : COLORS.primary}
+          />
+          <KpiCard
+            title={t('totalPayroll') || 'Total Payroll'}
+            value={`${totalSalary.toLocaleString()} RWF`}
+            icon={faMoneyBillWave}
+            color={COLORS.primary}
+          />
+        </div>
+
+        {/* Search and Filter */}
+        <div style={{
+          background: 'white',
+          padding: '1rem',
+          borderRadius: '12px',
+          marginBottom: '1rem',
+          boxShadow: COLORS.shadow,
+          display: 'flex',
+          gap: '1rem',
+          flexWrap: 'wrap',
+        }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+            <FontAwesomeIcon icon={faSearch} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: COLORS.textMuted }} />
+            <input
+              type="text"
+              placeholder={t('searchByNamePhone') || 'Search by name or phone...'}
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem 0.5rem 2.2rem',
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                background: COLORS.bgGray,
+                transition: 'all 0.2s',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = COLORS.primary;
+                e.currentTarget.style.boxShadow = `0 0 0 3px ${COLORS.primary}20`;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = COLORS.border;
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            />
+          </div>
+          <select
+            value={departmentFilter}
+            onChange={e => setDepartmentFilter(e.target.value)}
+            style={{
+              padding: '0.5rem 0.75rem',
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: '8px',
+              fontSize: '0.85rem',
+              background: COLORS.bgGray,
+              minWidth: '150px',
+            }}
+          >
+            <option value="all">{t('allDepartments') || 'All Departments'}</option>
+            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          {(searchTerm || departmentFilter !== 'all') && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setDepartmentFilter('all');
+              }}
+              style={{
+                padding: '0.4rem 1rem',
+                background: COLORS.bgGray,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = COLORS.danger;
+                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.borderColor = COLORS.danger;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = COLORS.bgGray;
+                e.currentTarget.style.color = COLORS.textPrimary;
+                e.currentTarget.style.borderColor = COLORS.border;
+              }}
+            >
+              {t('clearFilters') || 'Clear Filters'}
+            </button>
+          )}
+        </div>
+
+        {error && (
+          <div style={{
+            background: `${COLORS.danger}15`,
+            color: COLORS.danger,
+            padding: '0.75rem 1rem',
+            borderRadius: '8px',
+            marginBottom: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}>
+            <FontAwesomeIcon icon={faTimesCircle} /> {error}
+          </div>
+        )}
+
+        {/* Workers Table */}
+        {filteredWorkers.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '3rem 2rem',
+            background: 'white',
+            borderRadius: '12px',
+            boxShadow: COLORS.shadow,
+          }}>
+            <FontAwesomeIcon icon={faUser} style={{ fontSize: '3rem', color: COLORS.textMuted, marginBottom: '1rem' }} />
+            <h3 style={{ color: COLORS.textSecondary, fontSize: '1rem' }}>{t('noWorkersFound') || 'No workers found'}</h3>
+            <p style={{ color: COLORS.textMuted, fontSize: '0.85rem' }}>
+              {t('tryAdjustingFilters') || 'Try adjusting your search or filters'}
+            </p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', boxShadow: COLORS.shadow }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: COLORS.bgGray, borderBottom: `1px solid ${COLORS.border}` }}>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    <FontAwesomeIcon icon={faUser} style={{ marginRight: '0.3rem' }} /> {t('name') || 'Name'}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    <FontAwesomeIcon icon={faPhoneAlt} style={{ marginRight: '0.3rem' }} /> {t('phone') || 'Phone'}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    <FontAwesomeIcon icon={faBuilding} style={{ marginRight: '0.3rem' }} /> {t('department') || 'Department'}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'right', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    <FontAwesomeIcon icon={faMoneyBillWave} style={{ marginRight: '0.3rem' }} /> {t('salary') || 'Salary'}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    <FontAwesomeIcon icon={faCalendarAlt} style={{ marginRight: '0.3rem' }} /> {t('joinDate') || 'Join Date'}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    {t('status') || 'Status'}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    {t('actions') || 'Actions'}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredWorkers.map(worker => (
+                  <WorkerRow
+                    key={worker.id}
+                    worker={worker}
+                    onEdit={openEdit}
+                    onDelete={handleDeactivate}
+                    onView={(id) => window.location.href = `/dashboard/workers/${id}`}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Add/Edit Modal - stays the same */}
+        {showModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(4px)',
+          }} onClick={() => setShowModal(false)}>
+            <div style={{
+              background: 'white',
+              padding: '2rem',
+              borderRadius: '16px',
+              width: '550px',
+              maxWidth: '90%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: COLORS.shadowHover,
+            }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: COLORS.textPrimary, margin: 0 }}>
+                  {editingWorker ? t('editWorker') || 'Edit Worker' : t('addWorker') || 'Add Worker'}
+                </h2>
+                <button
+                  onClick={() => setShowModal(false)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '1.5rem',
+                    cursor: 'pointer',
+                    color: COLORS.textMuted,
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = COLORS.textPrimary;
+                    e.currentTarget.style.transform = 'rotate(90deg)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = COLORS.textMuted;
+                    e.currentTarget.style.transform = 'rotate(0)';
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit}>
+                {/* Form fields - same as before */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                    {t('fullName') || 'Full Name'} *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={t('fullName') || 'Full Name'}
+                    value={form.full_name}
+                    onChange={e => setForm({ ...form, full_name: e.target.value })}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.6rem 0.75rem',
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      transition: 'all 0.2s',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = COLORS.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 3px ${COLORS.primary}20`;
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = COLORS.border;
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                      {t('phone') || 'Phone'}
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder={t('phone') || 'Phone'}
+                      value={form.phone}
+                      onChange={e => setForm({ ...form, phone: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.75rem',
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: '8px',
+                        fontSize: '0.9rem',
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                      {t('email') || 'Email'}
+                    </label>
+                    <input
+                      type="email"
+                      placeholder={t('email') || 'Email'}
+                      value={form.email}
+                      onChange={e => setForm({ ...form, email: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.75rem',
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: '8px',
+                        fontSize: '0.9rem',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                      {t('department') || 'Department'}
+                    </label>
+                    <select
+                      value={form.department_id}
+                      onChange={e => setForm({ ...form, department_id: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.75rem',
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: '8px',
+                        fontSize: '0.9rem',
+                        background: 'white',
+                      }}
+                    >
+                      <option value="">{t('selectDepartment') || 'Select Department'}</option>
+                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                      {t('salary') || 'Salary (RWF)'}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={form.salary}
+                      onChange={e => setForm({ ...form, salary: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.75rem',
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: '8px',
+                        fontSize: '0.9rem',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                      {t('joinDate') || 'Join Date'}
+                    </label>
+                    <input
+                      type="date"
+                      value={form.join_date}
+                      onChange={e => setForm({ ...form, join_date: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.75rem',
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: '8px',
+                        fontSize: '0.9rem',
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                      {t('location') || 'Location'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={t('location') || 'Location'}
+                      value={form.location}
+                      onChange={e => setForm({ ...form, location: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.75rem',
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: '8px',
+                        fontSize: '0.9rem',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                    {t('profileImage') || 'Profile Image'}
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      style={{
+                        padding: '0.4rem',
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        flex: 1,
+                      }}
+                    />
+                    {uploading && (
+                      <span style={{ fontSize: '0.8rem', color: COLORS.textMuted }}>
+                        <FontAwesomeIcon icon={faUpload} spin /> {t('uploading') || 'Uploading...'}
+                      </span>
+                    )}
+                  </div>
+                  {form.image_url && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <img src={form.image_url} alt="Preview" style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${COLORS.primary}` }} />
+                    </div>
+                  )}
+                </div>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={form.is_active}
+                    onChange={e => setForm({ ...form, is_active: e.target.checked })}
+                    style={{ width: '16px', height: '16px', accentColor: COLORS.primary }}
+                  />
+                  <span style={{ fontSize: '0.85rem', color: COLORS.textSecondary }}>{t('active') || 'Active'}</span>
+                </label>
+
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    style={{
+                      padding: '0.6rem 1.5rem',
+                      background: COLORS.bgGray,
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      color: COLORS.textSecondary,
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = COLORS.border;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = COLORS.bgGray;
+                    }}
+                  >
+                    {t('cancel') || 'Cancel'}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploading}
+                    style={{
+                      padding: '0.6rem 1.5rem',
+                      background: COLORS.primary,
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: uploading ? 'not-allowed' : 'pointer',
+                      fontSize: '0.85rem',
+                      color: 'white',
+                      fontWeight: '600',
+                      transition: 'all 0.2s',
+                      opacity: uploading ? 0.6 : 1,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!uploading) {
+                        e.currentTarget.style.backgroundColor = COLORS.primaryDark;
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!uploading) {
+                        e.currentTarget.style.backgroundColor = COLORS.primary;
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faSave} style={{ marginRight: '0.3rem' }} />
+                    {editingWorker ? (t('update') || 'Update') : (t('save') || 'Save')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 }

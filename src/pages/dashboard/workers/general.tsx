@@ -3,9 +3,26 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
-  faSearch, faFileExport, faPrint, faUser, faPhoneAlt, faBuilding 
+  faSearch, faFileExport, faPrint, faUser, faPhoneAlt, faBuilding,
+  faArrowLeft
 } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
+
+// ========== CLEAN DESIGN TOKENS ==========
+const COLORS = {
+  primary: "#f59e0b",
+  primaryDark: "#d97706",
+  success: "#10b981",
+  danger: "#ef4444",      // ← ADDED
+  info: "#3b82f6",
+  textPrimary: "#111827",
+  textSecondary: "#6b7280",
+  textMuted: "#9ca3af",
+  bgGray: "#f9fafb",
+  border: "#e5e7eb",
+  shadow: "0 1px 3px rgba(0,0,0,0.06)",
+  shadowHover: "0 8px 25px rgba(0,0,0,0.08)",
+};
 
 interface Department {
   id: number;
@@ -18,6 +35,32 @@ interface SimpleWorker {
   phone: string;
   department_id: number;
   department_name: string;
+}
+
+function WorkerRow({ worker }: { worker: SimpleWorker }) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <tr
+      style={{
+        borderBottom: `1px solid ${COLORS.border}`,
+        backgroundColor: isHovered ? COLORS.bgGray : 'transparent',
+        transition: 'all 0.2s ease',
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <td style={{ padding: '0.75rem 1rem', fontWeight: '500', color: COLORS.textPrimary }}>
+        {worker.full_name}
+      </td>
+      <td style={{ padding: '0.75rem 1rem', color: COLORS.textSecondary }}>
+        {worker.phone || '-'}
+      </td>
+      <td style={{ padding: '0.75rem 1rem', color: COLORS.textSecondary }}>
+        {worker.department_name || '-'}
+      </td>
+    </tr>
+  );
 }
 
 export default function GeneralWorkersList() {
@@ -109,7 +152,7 @@ export default function GeneralWorkersList() {
           <table border="1" cellpadding="8">
             <thead><tr><th>${t('name')}</th><th>${t('phone')}</th><th>${t('department')}</th></tr></thead>
             <tbody>
-              ${filteredWorkers.map(w => `<tr><td>${escapeHtml(w.full_name)}</td><td>${escapeHtml(w.phone || '-')}</td><td>${escapeHtml(w.department_name || '-')}</td></tr>`).join('')}
+              ${filteredWorkers.map(w => `<tr><td>${w.full_name}</td><td>${w.phone || '-'}</td><td>${w.department_name || '-'}</td></tr>`).join('')}
             </tbody>
           </table>
         </body>
@@ -119,76 +162,239 @@ export default function GeneralWorkersList() {
     printWindow.print();
   };
 
-  const escapeHtml = (str: string) => str.replace(/[&<>]/g, function(m) {
-    if (m === '&') return '&amp;';
-    if (m === '<') return '&lt;';
-    if (m === '>') return '&gt;';
-    return m;
-  });
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: COLORS.textMuted }}>
+          {t('loading') || 'Loading...'}
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-  if (loading) return <DashboardLayout><p>{t('loading')}</p></DashboardLayout>;
-  if (error) return <DashboardLayout><p>{t('error')}: {error}</p></DashboardLayout>;
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div style={{ padding: '2rem', textAlign: 'center', color: COLORS.danger }}>
+          {t('error') || 'Error'}: {error}
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <h1 style={{ fontSize: '1.5rem' }}>{t('generalLists')}</h1>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={exportToCSV} style={{ background: '#10b981', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>
-            <FontAwesomeIcon icon={faFileExport} /> {t('exportCSV')}
-          </button>
-          <button onClick={printList} style={{ background: '#dc2626', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>
-            <FontAwesomeIcon icon={faPrint} /> {t('printPDF')}
-          </button>
+      <div style={{ padding: '0 1rem' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: COLORS.textPrimary, margin: 0 }}>
+              <FontAwesomeIcon icon={faUser} style={{ color: COLORS.primary, marginRight: '0.5rem' }} />
+              {t('generalLists') || 'General Lists'}
+            </h1>
+            <p style={{ fontSize: '0.85rem', color: COLORS.textSecondary, margin: '0.15rem 0 0 0' }}>
+              {t('quickWorkerReference') || 'Quick reference list of all workers'}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              onClick={exportToCSV}
+              style={{
+                padding: '0.5rem 1rem',
+                background: COLORS.success,
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = '0.8';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '1';
+              }}
+            >
+              <FontAwesomeIcon icon={faFileExport} /> {t('exportCSV') || 'Export CSV'}
+            </button>
+            <button
+              onClick={printList}
+              style={{
+                padding: '0.5rem 1rem',
+                background: COLORS.primary,
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = COLORS.primaryDark;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = COLORS.primary;
+              }}
+            >
+              <FontAwesomeIcon icon={faPrint} /> {t('printPDF') || 'Print PDF'}
+            </button>
+            <button
+              onClick={() => window.history.back()}
+              style={{
+                padding: '0.5rem 1rem',
+                background: COLORS.bgGray,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                color: COLORS.textSecondary,
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = COLORS.border;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = COLORS.bgGray;
+              }}
+            >
+              <FontAwesomeIcon icon={faArrowLeft} /> {t('back') || 'Back'}
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Search and Filter */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <FontAwesomeIcon icon={faSearch} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
-          <input
-            type="text"
-            placeholder={t('searchByNamePhone')}
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            style={{ padding: '8px 8px 8px 32px', width: '100%', border: '1px solid #ccc', borderRadius: '6px' }}
-          />
+        {/* Search and Filter */}
+        <div style={{
+          background: 'white',
+          padding: '1rem',
+          borderRadius: '12px',
+          marginBottom: '1rem',
+          boxShadow: COLORS.shadow,
+          display: 'flex',
+          gap: '1rem',
+          flexWrap: 'wrap',
+        }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+            <FontAwesomeIcon icon={faSearch} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: COLORS.textMuted }} />
+            <input
+              type="text"
+              placeholder={t('searchByNamePhone') || 'Search by name or phone...'}
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem 0.5rem 2.2rem',
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                background: COLORS.bgGray,
+                transition: 'all 0.2s',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = COLORS.primary;
+                e.currentTarget.style.boxShadow = `0 0 0 3px ${COLORS.primary}20`;
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = COLORS.border;
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            />
+          </div>
+          <select
+            value={departmentFilter}
+            onChange={e => setDepartmentFilter(e.target.value)}
+            style={{
+              padding: '0.5rem 0.75rem',
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: '8px',
+              fontSize: '0.85rem',
+              background: COLORS.bgGray,
+              minWidth: '150px',
+            }}
+          >
+            <option value="all">{t('allDepartments') || 'All Departments'}</option>
+            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          {(searchTerm || departmentFilter !== 'all') && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setDepartmentFilter('all');
+              }}
+              style={{
+                padding: '0.4rem 1rem',
+                background: COLORS.bgGray,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = COLORS.danger;
+                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.borderColor = COLORS.danger;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = COLORS.bgGray;
+                e.currentTarget.style.color = COLORS.textPrimary;
+                e.currentTarget.style.borderColor = COLORS.border;
+              }}
+            >
+              {t('clearFilters') || 'Clear Filters'}
+            </button>
+          )}
         </div>
-        <select
-          value={departmentFilter}
-          onChange={e => setDepartmentFilter(e.target.value)}
-          style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '6px' }}
-        >
-          <option value="all">{t('allDepartments')}</option>
-          {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
-      </div>
 
-      {filteredWorkers.length === 0 ? (
-        <p>{t('noWorkersMatching')}</p>
-      ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '12px', overflow: 'hidden' }}>
-            <thead style={{ background: '#f3f4f6' }}>
-              <tr>
-                <th style={{ padding: '12px', textAlign: 'left' }}><FontAwesomeIcon icon={faUser} /> {t('name')}</th>
-                <th style={{ padding: '12px', textAlign: 'left' }}><FontAwesomeIcon icon={faPhoneAlt} /> {t('phone')}</th>
-                <th style={{ padding: '12px', textAlign: 'left' }}><FontAwesomeIcon icon={faBuilding} /> {t('department')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredWorkers.map(w => (
-                <tr key={w.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  <td style={{ padding: '12px' }}>{w.full_name}</td>
-                  <td style={{ padding: '12px' }}>{w.phone || '-'}</td>
-                  <td style={{ padding: '12px' }}>{w.department_name || '-'}</td>
+        {/* Workers Table */}
+        {filteredWorkers.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '3rem 2rem',
+            background: 'white',
+            borderRadius: '12px',
+            boxShadow: COLORS.shadow,
+          }}>
+            <FontAwesomeIcon icon={faUser} style={{ fontSize: '3rem', color: COLORS.textMuted, marginBottom: '1rem' }} />
+            <h3 style={{ color: COLORS.textSecondary, fontSize: '1rem' }}>{t('noWorkersMatching') || 'No workers found'}</h3>
+            <p style={{ color: COLORS.textMuted, fontSize: '0.85rem' }}>
+              {t('tryAdjustingFilters') || 'Try adjusting your search or filters'}
+            </p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', boxShadow: COLORS.shadow }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: COLORS.bgGray, borderBottom: `1px solid ${COLORS.border}` }}>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    <FontAwesomeIcon icon={faUser} style={{ marginRight: '0.3rem' }} /> {t('name') || 'Name'}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    <FontAwesomeIcon icon={faPhoneAlt} style={{ marginRight: '0.3rem' }} /> {t('phone') || 'Phone'}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    <FontAwesomeIcon icon={faBuilding} style={{ marginRight: '0.3rem' }} /> {t('department') || 'Department'}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {filteredWorkers.map(worker => (
+                  <WorkerRow key={worker.id} worker={worker} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 }
