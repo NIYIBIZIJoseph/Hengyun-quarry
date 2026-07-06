@@ -6,10 +6,14 @@ import speakeasy from 'speakeasy';
 const JWT_SECRET = process.env.JWT_SECRET || 'hardcoded-secret-2026';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   const { tempToken, code } = req.body;
-  if (!tempToken || !code) return res.status(400).json({ error: 'Missing temporary token or code' });
+  if (!tempToken || !code) {
+    return res.status(400).json({ error: 'Missing temporary token or code' });
+  }
 
   try {
     // Verify temporary token
@@ -19,8 +23,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Fetch user's 2FA secret
-    const userRes = await pool.query('SELECT two_factor_secret, full_name, branch_id, role_id FROM users WHERE id = $1', [decoded.userId]);
-    if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    const userRes = await pool.query(
+      `SELECT two_factor_secret, full_name, branch_id, role_id, phone FROM users WHERE id = $1`,
+      [decoded.userId]
+    );
+    
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
     const user = userRes.rows[0];
     if (!user.two_factor_secret) {
       return res.status(400).json({ error: '2FA not set up for this user' });
@@ -33,17 +44,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       token: code,
       window: 1,
     });
+    
     if (!verified) {
       return res.status(401).json({ error: 'Invalid verification code' });
     }
 
-    // Issue full token
+    // ✅ Get user's role name
+    const roleRes = await pool.query(
+      `SELECT name FROM roles WHERE id = $1`,
+      [user.role_id]
+    );
+    const roleName = roleRes.rows[0]?.name || 'user';
+
+    // ✅ Issue full token with ALL needed fields
     const token = jwt.sign(
       {
         userId: decoded.userId,
-        phone: userRes.rows[0].phone,
-        roleId: user.role_id,
+        phone: user.phone,
+        role: roleName,
         branchId: user.branch_id,
+        fullName: user.full_name,
       },
       JWT_SECRET,
       { expiresIn: '7d' }
@@ -55,7 +75,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       user: {
         id: decoded.userId,
         fullName: user.full_name,
+        full_name: user.full_name,
+        role: roleName,
         branchId: user.branch_id,
+        phone: user.phone,
       },
     });
   } catch (err) {

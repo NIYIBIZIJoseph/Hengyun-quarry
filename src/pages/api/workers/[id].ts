@@ -1,3 +1,4 @@
+// src/pages/api/workers/[id].ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
 import { withAuth } from '@/lib/middleware/withAuth';
@@ -74,20 +75,20 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) 
 
       const oldData = existing.rows[0];
 
+      // ✅ REMOVED updated_at - column doesn't exist
       const updated = await pool.query(
         `
         UPDATE workers
         SET
-          full_name = $1,
-          phone = $2,
-          email = $3,
-          department_id = $4,
-          salary = $5,
-          join_date = $6,
-          location = $7,
-          image_url = $8,
-          is_active = $9,
-          updated_at = NOW()
+          full_name = COALESCE($1, full_name),
+          phone = COALESCE($2, phone),
+          email = COALESCE($3, email),
+          department_id = COALESCE($4, department_id),
+          salary = COALESCE($5, salary),
+          join_date = COALESCE($6, join_date),
+          location = COALESCE($7, location),
+          image_url = COALESCE($8, image_url),
+          is_active = COALESCE($9, is_active)
         WHERE id = $10
         RETURNING *
         `,
@@ -107,7 +108,7 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) 
 
       await logAudit({
         userId: user.userId,
-        action: 'UPDATE',
+        action: 'UPDATE_WORKER',
         targetType: 'worker',
         targetId: workerId,
         oldData,
@@ -123,24 +124,97 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) 
     }
   }
 
-  // ================= DELETE WORKER =================
+  // ================= TWO-STEP DELETE =================
   if (req.method === 'DELETE') {
     const allowed = await hasPermission(user.userId, 'worker:delete');
     if (!allowed) return res.status(403).json({ error: 'Forbidden' });
 
     try {
-      await pool.query(
-        `UPDATE workers SET is_active = false WHERE id = $1`,
+      // ✅ Get worker info
+      const worker = await pool.query(
+        `SELECT id, full_name, is_active FROM workers WHERE id = $1`,
         [workerId]
       );
 
-      return res.status(200).json({
-        success: true,
-        message: 'Worker deactivated',
-      });
+      if (!worker.rows.length) {
+        return res.status(404).json({ error: 'Worker not found' });
+      }
+
+      const workerData = worker.rows[0];
+
+      // ✅ STEP 1: If worker is active → DEACTIVATE (soft delete)
+      if (workerData.is_active === true) {
+        await pool.query(
+          `UPDATE workers SET is_active = false WHERE id = $1`,
+          [workerId]
+        );
+
+        await logAudit({
+          userId: user.userId,
+          action: 'DEACTIVATE_WORKER',
+          targetType: 'worker',
+          targetId: workerId,
+          ipAddress: req.headers['x-forwarded-for'] as string,
+          userAgent: req.headers['user-agent'],
+        });
+
+        return res.status(200).json({
+          success: true,
+          action: 'deactivated',
+          message: `${workerData.full_name} has been deactivated`
+        });
+      }
+
+      // ✅ STEP 2: If worker is inactive → PERMANENTLY DELETE
+      if (workerData.is_active === false) {
+        // ✅ First, delete related records to avoid foreign key violations
+        await pool.query(
+          `DELETE FROM attendance WHERE worker_id = $1`,
+          [workerId]
+        );
+        await pool.query(
+          `DELETE FROM worker_documents WHERE worker_id = $1`,
+          [workerId]
+        );
+        await pool.query(
+          `DELETE FROM salary_history WHERE worker_id = $1`,
+          [workerId]
+        );
+        await pool.query(
+          `DELETE FROM leave_requests WHERE worker_id = $1`,
+          [workerId]
+        );
+        await pool.query(
+          `DELETE FROM performance_reviews WHERE worker_id = $1`,
+          [workerId]
+        );
+
+        // ✅ Now permanently delete the worker
+        await pool.query(
+          `DELETE FROM workers WHERE id = $1`,
+          [workerId]
+        );
+
+        await logAudit({
+          userId: user.userId,
+          action: 'DELETE_WORKER_PERMANENT',
+          targetType: 'worker',
+          targetId: workerId,
+          ipAddress: req.headers['x-forwarded-for'] as string,
+          userAgent: req.headers['user-agent'],
+        });
+
+        return res.status(200).json({
+          success: true,
+          action: 'permanently_deleted',
+          message: `${workerData.full_name} has been permanently deleted`
+        });
+      }
+
+      return res.status(400).json({ error: 'Invalid worker state' });
     } catch (error) {
-      console.error(error);
-      return res.status(500).json({ error: 'Failed to deactivate worker' });
+      console.error('Delete error:', error);
+      return res.status(500).json({ error: 'Failed to process worker' });
     }
   }
 

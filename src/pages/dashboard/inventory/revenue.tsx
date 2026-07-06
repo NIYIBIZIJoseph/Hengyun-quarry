@@ -1,4 +1,6 @@
+// src/pages/dashboard/inventory/revenue.tsx
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -8,7 +10,9 @@ import {
   faChartLine,
   faBox,
   faTrophy,
-  faArrowUp // ← Changed from faTrendUp to faArrowUp
+  faArrowUp,
+  faSpinner,
+  faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -33,11 +37,12 @@ interface ProductRevenue {
   name: string;
   category_name: string;
   revenue: number;
+  order_count: number;
 }
 
 function RevenueCard({ product }: { product: ProductRevenue }) {
   const [isHovered, setIsHovered] = useState(false);
-  const { t } = useTranslation(); // ← ADD THIS
+  const { t } = useTranslation();
 
   return (
     <div
@@ -79,14 +84,24 @@ function RevenueCard({ product }: { product: ProductRevenue }) {
         </div>
       </div>
       <div style={{
-        fontSize: '1.25rem',
-        fontWeight: '700',
-        color: COLORS.primary,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingTop: '0.5rem',
         borderTop: `1px solid ${COLORS.border}`,
         marginTop: '0.5rem',
       }}>
-        {product.revenue.toLocaleString()} RWF
+        <div style={{ fontSize: '0.65rem', color: COLORS.textMuted }}>
+          {product.order_count} {product.order_count === 1 ? 'order' : 'orders'}
+        </div>
+        {/* ✅ Added .toLocaleString() for consistent formatting */}
+        <div style={{
+          fontSize: '1.25rem',
+          fontWeight: '700',
+          color: COLORS.textPrimary,
+        }}>
+          {product.revenue.toLocaleString()} RWF
+        </div>
       </div>
     </div>
   );
@@ -94,20 +109,29 @@ function RevenueCard({ product }: { product: ProductRevenue }) {
 
 export default function RevenueOverview() {
   const { t } = useTranslation();
+  const router = useRouter();
   const [revenues, setRevenues] = useState<ProductRevenue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [topProduct, setTopProduct] = useState<ProductRevenue | null>(null);
 
   useEffect(() => {
     const fetchRevenue = async () => {
       try {
-        const res = await fetch('/api/inventory/revenue-stats', { headers: getAuthHeaders() });
+        const res = await fetch('/api/inventory/revenue-stats', { 
+          headers: getAuthHeaders() 
+        });
         if (!res.ok) throw new Error('Failed to fetch revenue');
         const data = await res.json();
+        
         setTotalRevenue(data.totalRevenue || 0);
+        setTotalOrders(data.totalOrders || 0);
+        setTopProduct(data.topProduct || null);
         setRevenues(data.perProductRevenue || []);
       } catch (err: any) {
+        console.error('Error fetching revenue:', err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -119,8 +143,8 @@ export default function RevenueOverview() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: COLORS.textMuted }}>
-          {t('loadingRevenue') || 'Loading revenue overview...'}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+          <div className="loading-spinner"></div>
         </div>
       </DashboardLayout>
     );
@@ -129,19 +153,45 @@ export default function RevenueOverview() {
   if (error) {
     return (
       <DashboardLayout>
-        <div style={{ padding: '2rem', textAlign: 'center', color: COLORS.danger }}>
-          {t('error') || 'Error'}: {error}
+        <div style={{ 
+          maxWidth: '600px', 
+          margin: '4rem auto', 
+          textAlign: 'center',
+          padding: '3rem',
+          background: 'white',
+          borderRadius: '16px',
+          boxShadow: COLORS.shadow,
+        }}>
+          <FontAwesomeIcon icon={faExclamationTriangle} style={{ fontSize: '3rem', color: COLORS.danger, marginBottom: '1rem' }} />
+          <h2 style={{ color: COLORS.textPrimary }}>Error Loading Revenue</h2>
+          <p style={{ color: COLORS.textMuted }}>{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: '1rem',
+              padding: '0.6rem 1.5rem',
+              background: COLORS.primary,
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              color: 'white',
+              fontWeight: '600',
+              fontSize: '0.85rem',
+            }}
+          >
+            <FontAwesomeIcon icon={faSpinner} style={{ marginRight: '0.5rem' }} />
+            Try Again
+          </button>
         </div>
       </DashboardLayout>
     );
   }
 
   const sortedRevenues = [...revenues].sort((a, b) => b.revenue - a.revenue);
-  const topProduct = sortedRevenues.length > 0 ? sortedRevenues[0] : null;
 
   return (
     <DashboardLayout>
-      <div style={{ padding: '0 1rem' }}>
+      <div style={{ padding: '0 1rem', maxWidth: '1200px', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
@@ -150,11 +200,11 @@ export default function RevenueOverview() {
               {t('revenueOverview') || 'Revenue Overview'}
             </h1>
             <p style={{ fontSize: '0.85rem', color: COLORS.textSecondary, margin: '0.15rem 0 0 0' }}>
-              {t('revenueStats') || 'Track your revenue performance across all products'}
+              {t('revenueStats') || 'Revenue breakdown from approved orders'}
             </p>
           </div>
           <button
-            onClick={() => window.history.back()}
+            onClick={() => router.push('/dashboard/inventory')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -195,13 +245,17 @@ export default function RevenueOverview() {
           <div>
             <div style={{ fontSize: '0.8rem', color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               <FontAwesomeIcon icon={faMoneyBillWave} style={{ marginRight: '0.3rem' }} />
-              {t('totalRevenueDesc') || 'Total Revenue (All delivered orders)'}
+              {t('totalRevenueDesc') || 'Total Revenue (Approved orders)'}
             </div>
-            <div style={{ fontSize: '2.5rem', fontWeight: '700', color: COLORS.primary }}>
+            {/* ✅ Added .toLocaleString() for consistent formatting */}
+            <div style={{ fontSize: '2.5rem', fontWeight: '700', color: COLORS.textPrimary }}>
               {totalRevenue.toLocaleString()} RWF
             </div>
+            <div style={{ fontSize: '0.8rem', color: COLORS.textSecondary, marginTop: '0.25rem' }}>
+              {t('fromOrders') || 'From'} {totalOrders} {t('approvedOrders') || 'approved orders'}
+            </div>
           </div>
-          {topProduct && (
+          {topProduct && topProduct.revenue > 0 && (
             <div style={{
               background: 'white',
               padding: '0.75rem 1.25rem',
@@ -230,6 +284,9 @@ export default function RevenueOverview() {
                 <div style={{ fontWeight: '600', fontSize: '0.9rem', color: COLORS.textPrimary }}>
                   {topProduct.name}
                 </div>
+                <div style={{ fontSize: '0.7rem', color: COLORS.primary, fontWeight: '500' }}>
+                  {topProduct.revenue.toLocaleString()} RWF
+                </div>
               </div>
             </div>
           )}
@@ -241,7 +298,7 @@ export default function RevenueOverview() {
           {t('revenueByProduct') || 'Revenue by Product'}
         </h2>
 
-        {revenues.length === 0 ? (
+        {revenues.length === 0 || sortedRevenues.every(p => p.revenue === 0) ? (
           <div style={{
             textAlign: 'center',
             padding: '4rem 2rem',
@@ -261,11 +318,25 @@ export default function RevenueOverview() {
             gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
             gap: '1rem',
           }}>
-            {revenues.map(product => (
+            {sortedRevenues.map(product => (
               <RevenueCard key={product.id} product={product} />
             ))}
           </div>
         )}
+
+        <style jsx global>{`
+          .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid ${COLORS.border};
+            border-top-color: ${COLORS.primary};
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     </DashboardLayout>
   );

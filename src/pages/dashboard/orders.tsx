@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router'; // ← ADD THIS IMPORT
+import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getAuthHeaders, getUserRoleFromToken } from '@/lib/auth-client';
 import Link from 'next/link';
@@ -22,6 +22,8 @@ import {
   faMoneyBillWave,
   faShoppingCart,
   faArrowRight,
+  faTimes,
+  faCalendarAlt,
 } from '@fortawesome/free-solid-svg-icons';
 
 import { useTranslation } from '@/hooks/useTranslation';
@@ -58,6 +60,7 @@ interface Order {
   branch_name: string;
   product_names: string | null;
   product_count: number;
+  branch_id?: number;
 }
 
 // ========== KPI CARD COMPONENT ==========
@@ -167,9 +170,25 @@ function PaymentBadge({ status }: { status: string }) {
 }
 
 // ========== ORDER ROW COMPONENT ==========
-function OrderRow({ order, onView }: { order: Order; onView: (id: number) => void }) {
+function OrderRow({ order, onView, onTogglePayment }: { 
+  order: Order; 
+  onView: (id: number) => void;
+  onTogglePayment: (id: number, currentStatus: string) => void;
+}) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { t } = useTranslation();
+
+  const handleTogglePayment = async () => {
+    if (isUpdating) return;
+    setIsUpdating(true);
+    try {
+      const newStatus = order.payment_status === 'paid' ? 'unpaid' : 'paid';
+      await onTogglePayment(order.id, newStatus);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   return (
     <tr
@@ -215,7 +234,40 @@ function OrderRow({ order, onView }: { order: Order; onView: (id: number) => voi
         <StatusBadge status={order.status} />
       </td>
       <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
-        <PaymentBadge status={order.payment_status} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
+          <PaymentBadge status={order.payment_status} />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTogglePayment();
+            }}
+            disabled={isUpdating}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: COLORS.primary,
+              cursor: isUpdating ? 'not-allowed' : 'pointer',
+              padding: '0.15rem 0.3rem',
+              borderRadius: '4px',
+              fontSize: '0.65rem',
+              opacity: isUpdating ? 0.5 : 1,
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = `${COLORS.primary}15`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+            title={order.payment_status === 'paid' ? t('markAsUnpaid') || 'Mark as Unpaid' : t('markAsPaid') || 'Mark as Paid'}
+          >
+            {isUpdating ? (
+              <span style={{ fontSize: '0.55rem' }}>...</span>
+            ) : (
+              <FontAwesomeIcon icon={faEdit} style={{ fontSize: '0.6rem' }} />
+            )}
+          </button>
+        </div>
       </td>
       <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: COLORS.textMuted }}>
         {new Date(order.created_at).toLocaleDateString()}
@@ -248,40 +300,33 @@ function OrderRow({ order, onView }: { order: Order; onView: (id: number) => voi
 }
 
 export default function OrdersPage() {
-  const router = useRouter(); // ← ADD THIS LINE
+  const router = useRouter();
   const { t } = useTranslation();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [branchFilter, setBranchFilter] = useState('all');
 
-  const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
-
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7));
+
+  const [branches, setBranches] = useState<{ id: number; name: string }[]>([]);
 
   const userRole = getUserRoleFromToken();
   const isSuperAdmin = userRole === ROLES.SUPERADMIN;
 
   const fetchOrders = async () => {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (search) params.append('search', search);
-    if (statusFilter !== 'all') params.append('status', statusFilter);
-    if (paymentFilter !== 'all') params.append('payment', paymentFilter);
-    if (branchFilter !== 'all') params.append('branch', branchFilter);
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
-
     try {
-      const res = await fetch(`/api/orders?${params.toString()}`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/orders`, { headers: getAuthHeaders() });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const ordersArray = Array.isArray(data) ? data : [];
@@ -312,8 +357,48 @@ export default function OrdersPage() {
   }, []);
 
   useEffect(() => {
-    fetchOrders();
-  }, [search, statusFilter, paymentFilter, branchFilter, startDate, endDate]);
+    let filtered = [...orders];
+
+    if (search) {
+      const lowerSearch = search.toLowerCase();
+      filtered = filtered.filter(o => 
+        o.order_number?.toLowerCase().includes(lowerSearch) ||
+        o.client_name?.toLowerCase().includes(lowerSearch) ||
+        o.client_phone?.includes(search)
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(o => o.status === statusFilter);
+    }
+
+    if (paymentFilter !== 'all') {
+      filtered = filtered.filter(o => o.payment_status === paymentFilter);
+    }
+
+    if (branchFilter !== 'all') {
+      filtered = filtered.filter(o => o.branch_id?.toString() === branchFilter);
+    }
+
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(o => {
+        const created = new Date(o.created_at);
+        return created >= start;
+      });
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(o => {
+        const created = new Date(o.created_at);
+        return created <= end;
+      });
+    }
+
+    setFilteredOrders(filtered);
+  }, [orders, search, statusFilter, paymentFilter, branchFilter, startDate, endDate]);
 
   const handleMonthChange = (direction: number) => {
     const [year, month] = currentMonth.split('-').map(Number);
@@ -360,22 +445,57 @@ export default function OrdersPage() {
     URL.revokeObjectURL(url);
   };
 
-  // Calculate KPIs with proper number handling
+  // ✅ TOGGLE PAYMENT STATUS - UPDATED to work with API
+  const togglePaymentStatus = async (orderId: number, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ payment_status: newStatus }),
+      });
+      
+      if (res.ok) {
+        // Update local state
+        const updatedOrders = orders.map(o => 
+          o.id === orderId ? { ...o, payment_status: newStatus } : o
+        );
+        setOrders(updatedOrders);
+        setFilteredOrders(prev => 
+          prev.map(o => o.id === orderId ? { ...o, payment_status: newStatus } : o)
+        );
+        setMessage(`Payment status updated to ${newStatus === 'paid' ? 'Paid' : 'Unpaid'}`);
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed to update payment status');
+      }
+    } catch (err) {
+      console.error('Error updating payment status:', err);
+      alert('Network error while updating payment status');
+    }
+  };
+
   const totalOrders = filteredOrders.length;
   
   const totalRevenue = filteredOrders.reduce((sum, o) => {
-    const amount = typeof o.total_amount === 'number' ? o.total_amount : parseFloat(o.total_amount) || 0;
+    const amount = typeof o.total_amount === 'number' 
+      ? o.total_amount 
+      : parseFloat(o.total_amount) || 0;
     return sum + amount;
   }, 0);
   
   const pendingOrders = filteredOrders.filter(o => o.status === 'pending').length;
   const deliveredOrders = filteredOrders.filter(o => o.status === 'delivered').length;
 
+  const handleViewOrder = (id: number) => {
+    router.push(`/dashboard/orders/${id}`);
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: COLORS.textMuted }}>
-          {t('loadingOrders') || 'Loading orders...'}
+          <div className="loading-spinner"></div>
         </div>
       </DashboardLayout>
     );
@@ -398,6 +518,7 @@ export default function OrdersPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: COLORS.textPrimary, margin: 0 }}>
+              <FontAwesomeIcon icon={faShoppingCart} style={{ color: COLORS.primary, marginRight: '0.5rem' }} />
               {t('marketOrders') || 'Market Orders'}
             </h1>
             <p style={{ fontSize: '0.85rem', color: COLORS.textSecondary, margin: '0.15rem 0 0 0' }}>
@@ -435,6 +556,13 @@ export default function OrdersPage() {
             <FontAwesomeIcon icon={faFileExport} /> {t('exportCSV') || 'Export CSV'}
           </button>
         </div>
+
+        {/* Messages */}
+        {message && (
+          <div style={{ marginBottom: '1rem', padding: '12px 16px', background: '#d1fae5', borderRadius: '8px', color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.5rem', borderLeft: `3px solid ${COLORS.success}` }}>
+            <FontAwesomeIcon icon={faCheckCircle} /> {message}
+          </div>
+        )}
 
         {/* KPI Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -554,7 +682,9 @@ export default function OrdersPage() {
                 ))}
               </select>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', borderLeft: `1px solid ${COLORS.border}`, paddingLeft: '1rem' }}>
+              <FontAwesomeIcon icon={faCalendarAlt} style={{ color: COLORS.primary, fontSize: '0.8rem' }} />
               <button
                 onClick={() => handleMonthChange(-1)}
                 style={{
@@ -574,7 +704,13 @@ export default function OrdersPage() {
               >
                 <FontAwesomeIcon icon={faChevronLeft} style={{ fontSize: '0.8rem' }} />
               </button>
-              <span style={{ minWidth: '90px', textAlign: 'center', fontSize: '0.85rem', fontWeight: '500', color: COLORS.textPrimary }}>
+              <span style={{ 
+                minWidth: '90px', 
+                textAlign: 'center', 
+                fontSize: '0.85rem', 
+                fontWeight: '500', 
+                color: COLORS.textPrimary 
+              }}>
                 {currentMonth}
               </span>
               <button
@@ -597,7 +733,8 @@ export default function OrdersPage() {
                 <FontAwesomeIcon icon={faChevronRight} style={{ fontSize: '0.8rem' }} />
               </button>
             </div>
-            {(startDate || endDate || search || statusFilter !== 'all' || paymentFilter !== 'all') && (
+            
+            {(search || statusFilter !== 'all' || paymentFilter !== 'all' || branchFilter !== 'all' || startDate || endDate) && (
               <button
                 onClick={() => {
                   setSearch('');
@@ -616,6 +753,9 @@ export default function OrdersPage() {
                   cursor: 'pointer',
                   fontSize: '0.8rem',
                   transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = COLORS.danger;
@@ -628,6 +768,7 @@ export default function OrdersPage() {
                   e.currentTarget.style.borderColor = COLORS.border;
                 }}
               >
+                <FontAwesomeIcon icon={faTimes} style={{ fontSize: '0.7rem' }} />
                 {t('clearFilters') || 'Clear Filters'}
               </button>
             )}
@@ -644,7 +785,7 @@ export default function OrdersPage() {
             boxShadow: COLORS.shadow,
           }}>
             <FontAwesomeIcon icon={faBox} style={{ fontSize: '3rem', color: COLORS.textMuted, marginBottom: '1rem' }} />
-            <h3 style={{ color: COLORS.textSecondary }}>{t('noOrdersFound') || 'No orders found'}</h3>
+            <h3 style={{ color: COLORS.textSecondary, fontSize: '1rem' }}>{t('noOrdersFound') || 'No orders found'}</h3>
             <p style={{ color: COLORS.textMuted, fontSize: '0.85rem' }}>
               {t('tryAdjustingFilters') || 'Try adjusting your search or filters'}
             </p>
@@ -667,7 +808,7 @@ export default function OrdersPage() {
                     {t('products') || 'Products'}
                   </th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'right', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
-                    {t('total') || 'Total'}
+                    {t('total') || 'Total (RWF)'}
                   </th>
                   <th style={{ padding: '0.75rem 1rem', textAlign: 'center', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
                     {t('status') || 'Status'}
@@ -688,13 +829,28 @@ export default function OrdersPage() {
                   <OrderRow
                     key={order.id}
                     order={order}
-                    onView={(id) => router.push(`/dashboard/orders/${id}`)}
+                    onView={handleViewOrder}
+                    onTogglePayment={togglePaymentStatus}
                   />
                 ))}
               </tbody>
             </table>
           </div>
         )}
+
+        <style jsx global>{`
+          .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid ${COLORS.border};
+            border-top-color: ${COLORS.primary};
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     </DashboardLayout>
   );

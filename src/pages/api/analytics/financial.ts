@@ -1,7 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-
 import pool from "@/lib/db";
-
 import { withAuth } from "@/lib/middleware/withAuth";
 import { requirePermission } from "@/lib/middleware/requirePermission";
 import { enforceBranchIsolation } from "@/lib/branch";
@@ -29,13 +27,16 @@ export default withAuth(
           "branch_id"
         );
 
+      // FIXED: Use order_items with unit_price
       const revenueDaily = await pool.query(
         `
         SELECT DATE(o.created_at) as date,
-               COALESCE(SUM(o.total_amount), 0) as revenue
+               COALESCE(SUM(oi.quantity * oi.unit_price), 0) as revenue
         FROM orders o
-        WHERE o.status IN ('approved', 'delivered')
+        JOIN order_items oi ON o.id = oi.order_id
+        WHERE o.status IN ('approved', 'delivered', 'completed')
           AND o.created_at >= CURRENT_DATE - INTERVAL '29 days'
+          AND o.deleted_at IS NULL
           ${whereClause}
         GROUP BY DATE(o.created_at)
         ORDER BY date ASC
@@ -43,14 +44,15 @@ export default withAuth(
         params
       );
 
+      // FIXED: Use order_items with unit_price for top products
       const topProducts = await pool.query(
         `
         SELECT p.name,
-               COALESCE(SUM(oi.subtotal), 0) as revenue
+               COALESCE(SUM(oi.quantity * oi.unit_price), 0) as revenue
         FROM order_items oi
         JOIN orders o ON oi.order_id = o.id
         JOIN products p ON oi.product_id = p.id
-        WHERE o.status IN ('approved', 'delivered')
+        WHERE o.status IN ('approved', 'delivered', 'completed')
           AND o.deleted_at IS NULL
           ${whereClause}
         GROUP BY p.id, p.name

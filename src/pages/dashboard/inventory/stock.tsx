@@ -1,11 +1,13 @@
+// src/pages/dashboard/inventory/stock.tsx
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faBox, faExclamationTriangle, faCheckCircle, faTimesCircle,
   faChartLine, faPlus, faArrowLeft, faSearch,
-  faFilter, faTruck, faEye
+  faTruck, faEye, faSpinner
 } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -195,7 +197,7 @@ function ProductCard({
         </div>
         <div>
           <div style={{ fontSize: '0.6rem', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-            {t('reorderLevel') || 'Reorder'}
+            {t('reorderLevel') || 'Reorder Level'}
           </div>
           <div style={{ fontWeight: '600', fontSize: '1rem', color: COLORS.textPrimary }}>
             {product.reorder_level} {t('units') || 'units'}
@@ -238,6 +240,7 @@ function ProductCard({
 
 export default function StockOverview() {
   const { t } = useTranslation();
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -260,11 +263,16 @@ export default function StockOverview() {
       setLoading(true);
       try {
         await fetchProducts();
-        const topRes = await fetch('/api/dashboard/top-products', { headers: getAuthHeaders() });
-        if (topRes.ok) {
-          const topData = await topRes.json();
-          const topDataArray = Array.isArray(topData) ? topData : (topData.data || []);
-          setTopProducts(topDataArray.slice(0, 5));
+        // Try to get top products from dashboard API
+        try {
+          const topRes = await fetch('/api/dashboard/top-products', { headers: getAuthHeaders() });
+          if (topRes.ok) {
+            const topData = await topRes.json();
+            setTopProducts(Array.isArray(topData) ? topData.slice(0, 5) : []);
+          }
+        } catch (err) {
+          console.error('Error fetching top products:', err);
+          setTopProducts([]);
         }
       } catch (err: any) {
         setError(err.message);
@@ -302,6 +310,7 @@ export default function StockOverview() {
         alert(err.error || t('restockFailed') || 'Restock failed');
       }
     } catch (err) {
+      console.error('Restock error:', err);
       alert(t('errorRestocking') || 'Error restocking');
     } finally {
       setUpdating(false);
@@ -311,7 +320,7 @@ export default function StockOverview() {
   // Filter products by search
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.category_name?.toLowerCase().includes(search.toLowerCase())
+    (p.category_name?.toLowerCase() || '').includes(search.toLowerCase())
   );
 
   const lowStockCount = products.filter(p => p.stock_quantity <= p.reorder_level && p.stock_quantity > 0).length;
@@ -321,8 +330,8 @@ export default function StockOverview() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: COLORS.textMuted }}>
-          {t('loadingStock') || 'Loading stock overview...'}
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+          <div className="loading-spinner"></div>
         </div>
       </DashboardLayout>
     );
@@ -331,8 +340,35 @@ export default function StockOverview() {
   if (error) {
     return (
       <DashboardLayout>
-        <div style={{ padding: '2rem', textAlign: 'center', color: COLORS.danger }}>
-          {t('error') || 'Error'}: {error}
+        <div style={{ 
+          maxWidth: '600px', 
+          margin: '4rem auto', 
+          textAlign: 'center',
+          padding: '3rem',
+          background: 'white',
+          borderRadius: '16px',
+          boxShadow: COLORS.shadow,
+        }}>
+          <FontAwesomeIcon icon={faExclamationTriangle} style={{ fontSize: '3rem', color: COLORS.danger, marginBottom: '1rem' }} />
+          <h2 style={{ color: COLORS.textPrimary }}>Error Loading Stock</h2>
+          <p style={{ color: COLORS.textMuted }}>{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: '1rem',
+              padding: '0.6rem 1.5rem',
+              background: COLORS.primary,
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              color: 'white',
+              fontWeight: '600',
+              fontSize: '0.85rem',
+            }}
+          >
+            <FontAwesomeIcon icon={faSpinner} style={{ marginRight: '0.5rem' }} />
+            Try Again
+          </button>
         </div>
       </DashboardLayout>
     );
@@ -340,7 +376,7 @@ export default function StockOverview() {
 
   return (
     <DashboardLayout>
-      <div style={{ padding: '0 1rem' }}>
+      <div style={{ padding: '0 1rem', maxWidth: '1200px', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
@@ -353,7 +389,7 @@ export default function StockOverview() {
             </p>
           </div>
           <button
-            onClick={() => window.history.back()}
+            onClick={() => router.push('/dashboard/inventory')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -505,6 +541,7 @@ export default function StockOverview() {
 
         {/* All Products */}
         <h2 style={{ fontSize: '1rem', fontWeight: '600', color: COLORS.textPrimary, marginBottom: '0.75rem' }}>
+          <FontAwesomeIcon icon={faBox} style={{ color: COLORS.primary, marginRight: '0.5rem' }} />
           {t('allProductsStock') || 'All Products Stock'}
           <span style={{ fontSize: '0.75rem', color: COLORS.textMuted, fontWeight: '400', marginLeft: '0.5rem' }}>
             ({filteredProducts.length} {t('products') || 'products'})
@@ -565,15 +602,18 @@ export default function StockOverview() {
               boxShadow: COLORS.shadowHover,
             }} onClick={e => e.stopPropagation()}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: COLORS.textPrimary, marginBottom: '0.25rem' }}>
+                <FontAwesomeIcon icon={faPlus} style={{ color: COLORS.primary, marginRight: '0.5rem' }} />
                 {t('restockProduct') || 'Restock'} {restockProduct.name}
               </h3>
               <p style={{ fontSize: '0.85rem', color: COLORS.textSecondary, marginBottom: '1rem' }}>
-                {t('currentStock') || 'Current stock'}: {restockProduct.stock_quantity} {t('units') || 'units'}
+                {t('currentStock') || 'Current stock'}: <strong>{restockProduct.stock_quantity}</strong> {t('units') || 'units'}
+                <br />
+                {t('reorderLevel') || 'Reorder Level'}: <strong>{restockProduct.reorder_level}</strong> {t('units') || 'units'}
               </p>
 
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
-                  {t('quantityToAdd') || 'Quantity to add (units)'}
+                  {t('quantityToAdd') || 'Quantity to add (units)'} *
                 </label>
                 <input
                   type="number"
@@ -619,7 +659,7 @@ export default function StockOverview() {
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
                 <button
                   onClick={() => setRestockProduct(null)}
                   style={{
@@ -644,6 +684,7 @@ export default function StockOverview() {
                 </button>
                 <button
                   onClick={() => handleRestock(restockProduct)}
+                  disabled={updating}
                   style={{
                     padding: '0.5rem 1.5rem',
                     background: COLORS.primary,
@@ -662,27 +703,41 @@ export default function StockOverview() {
                   onMouseEnter={(e) => {
                     if (!updating) {
                       e.currentTarget.style.backgroundColor = COLORS.primaryDark;
+                      e.currentTarget.style.transform = 'translateY(-2px)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!updating) {
                       e.currentTarget.style.backgroundColor = COLORS.primary;
+                      e.currentTarget.style.transform = 'translateY(0)';
                     }
                   }}
                 >
                   {updating ? (
-                    t('adding') || 'Adding...'
+                    <FontAwesomeIcon icon={faSpinner} spin /> 
                   ) : (
-                    <>
-                      <FontAwesomeIcon icon={faPlus} style={{ fontSize: '0.7rem' }} />
-                      {t('addStock') || 'Add Stock'}
-                    </>
+                    <FontAwesomeIcon icon={faPlus} style={{ fontSize: '0.7rem' }} />
                   )}
+                  {updating ? (t('adding') || 'Adding...') : (t('addStock') || 'Add Stock')}
                 </button>
               </div>
             </div>
           </div>
         )}
+
+        <style jsx global>{`
+          .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid ${COLORS.border};
+            border-top-color: ${COLORS.primary};
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     </DashboardLayout>
   );

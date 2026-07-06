@@ -6,8 +6,8 @@ import { useTranslation } from '@/hooks/useTranslation';
 
 // ========== CLEAN DESIGN TOKENS ==========
 const COLORS = {
-  primary: "#f59e0b",      // Your brand gold
-  danger: "#ef4444",       // Only for urgent/negative
+  primary: "#f59e0b",
+  danger: "#ef4444",
 };
 
 function KpiCard({ 
@@ -106,17 +106,85 @@ function KpiCard({
 export default function SupportKPIs() {
   const { t } = useTranslation();
   const [stats, setStats] = useState({ openTickets: 0, urgentTickets: 0, avgResponseTime: '2.4h' });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/support/tickets', { headers: getAuthHeaders() })
-      .then(res => res.json())
-      .then(tickets => {
+    const fetchData = async () => {
+      const headers = getAuthHeaders();
+      try {
+        const res = await fetch('/api/support/tickets', { headers });
+        
+        // ✅ Handle non-OK responses
+        if (!res.ok) {
+          console.warn('Support tickets API returned:', res.status);
+          setStats({ openTickets: 0, urgentTickets: 0, avgResponseTime: '0h' });
+          setLoading(false);
+          return;
+        }
+
+        // ✅ Parse JSON safely
+        let data;
+        try {
+          data = await res.json();
+        } catch (parseError) {
+          console.error('Failed to parse support tickets JSON:', parseError);
+          setStats({ openTickets: 0, urgentTickets: 0, avgResponseTime: '0h' });
+          setLoading(false);
+          return;
+        }
+
+        // ✅ Ensure data is an array
+        let tickets = [];
+        if (Array.isArray(data)) {
+          tickets = data;
+        } else if (data && typeof data === 'object') {
+          tickets = data.data || data.tickets || data.rows || [];
+          if (!Array.isArray(tickets)) tickets = [];
+        }
+
         const open = tickets.filter((t: any) => t.status !== 'closed' && t.status !== 'resolved').length;
         const urgent = tickets.filter((t: any) => t.priority === 'urgent' && t.status !== 'closed').length;
-        setStats({ openTickets: open, urgentTickets: urgent, avgResponseTime: '2.4h' });
-      })
-      .catch(console.error);
+        setStats({ 
+          openTickets: open, 
+          urgentTickets: urgent, 
+          avgResponseTime: open > 0 ? '2.4h' : '0h'
+        });
+      } catch (error) {
+        console.error('Error fetching support KPIs:', error);
+        setStats({ openTickets: 0, urgentTickets: 0, avgResponseTime: '0h' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
+
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
+        gap: '1rem' 
+      }}>
+        {[1, 2, 3].map((i) => (
+          <div key={i} style={{ 
+            background: 'white', 
+            borderRadius: '12px',
+            padding: '1.25rem',
+            height: '100px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#9ca3af',
+            borderLeft: '3px solid #e5e7eb',
+          }}>
+            Loading...
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div style={{ 
@@ -129,15 +197,15 @@ export default function SupportKPIs() {
         value={stats.openTickets}
         sub={t('needsReply') || "needs reply"}
         icon={faTicketAlt}
-        color={COLORS.primary}
-        trend={7}
+        color={stats.openTickets > 0 ? COLORS.primary : "#9ca3af"}
+        trend={stats.openTickets > 0 ? 7 : 0}
       />
       <KpiCard
         label={t('urgent') || "Urgent"}
         value={stats.urgentTickets}
         sub={t('highPriority') || "high priority"}
         icon={faFire}
-        color={COLORS.danger}
+        color={stats.urgentTickets > 0 ? COLORS.danger : "#9ca3af"}
         trend={0}
       />
       <KpiCard
@@ -146,7 +214,7 @@ export default function SupportKPIs() {
         sub={t('firstReply') || "first reply"}
         icon={faClock}
         color={COLORS.primary}
-        trend={-0.5}
+        trend={stats.avgResponseTime !== '0h' ? -0.5 : 0}
       />
     </div>
   );

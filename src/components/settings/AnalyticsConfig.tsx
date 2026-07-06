@@ -1,18 +1,155 @@
+// src/pages/dashboard/settings/analytics.tsx
 import { useEffect, useState } from 'react';
-import { getAuthHeaders } from '@/lib/auth-client';
+import { getAuthHeaders, getUserRoleFromToken } from '@/lib/auth-client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
-  faChartLine, faCalendarAlt, faSync, faChartBar, 
-  faChartPie, faChartSimple, faSave, faDatabase,
-  faChartArea, faRefresh, faClock, faSlidersH
+  faChartLine, faCalendarAlt, faRefresh, 
+  faChartBar, faDatabase, faClock, faSave, faCheckCircle,
+  faExclamationTriangle, faSlidersH, faChartPie
 } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
-import { ROLES } from "@/lib/roles";
+import { ROLES } from '@/lib/roles';
+
+// ========== DESIGN TOKENS ==========
+const COLORS = {
+  primary: "#f59e0b",
+  primaryDark: "#d97706",
+  success: "#10b981",
+  danger: "#ef4444",
+  info: "#3b82f6",
+  textPrimary: "#111827",
+  textSecondary: "#6b7280",
+  textMuted: "#9ca3af",
+  bgGray: "#f9fafb",
+  border: "#e5e7eb",
+  shadow: "0 1px 3px rgba(0,0,0,0.06)",
+  shadowHover: "0 8px 25px rgba(0,0,0,0.08)",
+};
 
 interface Config {
   key: string;
   value: string;
   description: string;
+}
+
+function ConfigRow({ 
+  label, 
+  key, 
+  value, 
+  description, 
+  type = 'text',
+  options,
+  onUpdate,
+  saving,
+  canEdit,
+  icon
+}: { 
+  label: string; 
+  key: string; 
+  value: string; 
+  description: string; 
+  type?: 'text' | 'number' | 'select';
+  options?: { value: string; label: string }[];
+  onUpdate: (key: string, value: string) => void;
+  saving: boolean;
+  canEdit: boolean;
+  icon?: any;
+}) {
+  const [localValue, setLocalValue] = useState(value);
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleBlur = () => {
+    if (localValue !== value) {
+      onUpdate(key, localValue);
+    }
+  };
+
+  return (
+    <div 
+      style={{
+        marginBottom: '1.25rem',
+        paddingBottom: '1.25rem',
+        borderBottom: `1px solid ${COLORS.border}`,
+        transition: 'all 0.2s',
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+        {icon && <FontAwesomeIcon icon={icon} style={{ color: COLORS.primary, fontSize: '0.8rem' }} />}
+        <label style={{ 
+          fontWeight: '500', 
+          fontSize: '0.85rem',
+          color: COLORS.textPrimary,
+        }}>
+          {label}
+        </label>
+      </div>
+      {type === 'select' ? (
+        <select
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onBlur={handleBlur}
+          disabled={!canEdit || saving}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            border: `1px solid ${isHovered ? COLORS.primary : COLORS.border}`,
+            borderRadius: '8px',
+            fontSize: '0.9rem',
+            background: 'white',
+            transition: 'all 0.2s',
+            opacity: !canEdit ? 0.6 : 1,
+          }}
+        >
+          {options?.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      ) : type === 'number' ? (
+        <input
+          type="number"
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onBlur={handleBlur}
+          disabled={!canEdit || saving}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            border: `1px solid ${isHovered ? COLORS.primary : COLORS.border}`,
+            borderRadius: '8px',
+            fontSize: '0.9rem',
+            transition: 'all 0.2s',
+            opacity: !canEdit ? 0.6 : 1,
+          }}
+        />
+      ) : (
+        <input
+          type="text"
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onBlur={handleBlur}
+          disabled={!canEdit || saving}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            border: `1px solid ${isHovered ? COLORS.primary : COLORS.border}`,
+            borderRadius: '8px',
+            fontSize: '0.9rem',
+            transition: 'all 0.2s',
+            opacity: !canEdit ? 0.6 : 1,
+          }}
+        />
+      )}
+      <small style={{ color: COLORS.textMuted, display: 'block', marginTop: '0.25rem', fontSize: '0.75rem' }}>
+        {description}
+      </small>
+    </div>
+  );
 }
 
 export default function AnalyticsConfigSettings() {
@@ -23,7 +160,7 @@ export default function AnalyticsConfigSettings() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  const userRole = typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('user') || '{}').role) : null;
+  const userRole = getUserRoleFromToken();
   const canEdit = userRole === ROLES.SUPERADMIN;
 
   const fetchConfigs = async () => {
@@ -64,7 +201,7 @@ export default function AnalyticsConfigSettings() {
       setMessage(`${key} updated successfully`);
       setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {
-      alert(err.message);
+      setError(err.message);
     } finally {
       setSaving(false);
     }
@@ -76,215 +213,218 @@ export default function AnalyticsConfigSettings() {
     return config?.value || '';
   };
 
-  if (loading) return <div style={{ padding: '1rem', textAlign: 'center' }}>{t('loadingAnalyticsConfig') || 'Loading analytics configuration...'}</div>;
-  if (error) return <div style={{ color: '#dc2626', padding: '1rem' }}>{t('error') || 'Error'}: {error}</div>;
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+        <div className="loading-spinner"></div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-        <FontAwesomeIcon icon={faChartLine} /> {t('analyticsConfiguration') || 'Analytics Configuration'}
-      </h3>
-      <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
-        Configure how analytics data is displayed, cached, and refreshed across the dashboard.
-      </p>
-
+    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+      {/* Messages */}
       {message && (
-        <div style={{ marginBottom: '1rem', padding: '12px', background: '#d1fae5', borderRadius: '8px', color: '#065f46' }}>
-          <FontAwesomeIcon icon={faSave} /> {message}
+        <div style={{ marginBottom: '1rem', padding: '12px', background: '#d1fae5', borderRadius: '8px', color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <FontAwesomeIcon icon={faCheckCircle} /> {message}
+        </div>
+      )}
+      {error && (
+        <div style={{ marginBottom: '1rem', padding: '12px', background: '#fee2e2', borderRadius: '8px', color: '#991b1b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <FontAwesomeIcon icon={faExclamationTriangle} /> {error}
         </div>
       )}
 
-      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', marginTop: '1rem' }}>
-        
-        {/* Default Date Range */}
-        <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
-            <FontAwesomeIcon icon={faCalendarAlt} style={{ marginRight: '0.5rem', color: '#f59e0b' }} />
-            {t('defaultDateRange') || 'Default Date Range'}
-          </label>
-          <select
+      {/* Config Form */}
+      <div style={{ 
+        background: 'white', 
+        padding: '1.5rem', 
+        borderRadius: '12px', 
+        boxShadow: COLORS.shadow,
+      }}>
+        {!canEdit && (
+          <div style={{
+            padding: '12px 16px',
+            background: '#fef3c7',
+            borderRadius: '8px',
+            marginBottom: '1rem',
+            color: '#92400e',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontSize: '0.85rem',
+            borderLeft: `3px solid ${COLORS.primary}`,
+          }}>
+            <FontAwesomeIcon icon={faExclamationTriangle} />
+            You have read-only access to these settings. Contact a Super Admin to make changes.
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gap: '0.25rem' }}>
+          <ConfigRow
+            label={t('defaultDateRange') || 'Default Date Range'}
+            key="analytics_default_range"
             value={getValue('analytics_default_range')}
-            onChange={(e) => updateConfig('analytics_default_range', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '10px', border: '1px solid #d1d5db', borderRadius: '8px' }}
-          >
-            <option value="last_7_days">{t('last7Days') || 'Last 7 days'}</option>
-            <option value="last_30_days">{t('last30Days') || 'Last 30 days'}</option>
-            <option value="this_month">{t('thisMonth') || 'This month'}</option>
-            <option value="this_year">{t('thisYear') || 'This year'}</option>
-          </select>
-          <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
-            Default date range for all analytics charts
-          </small>
-        </div>
+            description={t('defaultDateRangeDesc') || 'Default date range for all analytics charts'}
+            type="select"
+            icon={faCalendarAlt}
+            options={[
+              { value: 'last_7_days', label: 'Last 7 days' },
+              { value: 'last_30_days', label: 'Last 30 days' },
+              { value: 'this_month', label: 'This month' },
+              { value: 'this_year', label: 'This year' },
+            ]}
+            onUpdate={updateConfig}
+            saving={saving}
+            canEdit={canEdit}
+          />
 
-        {/* Chart Refresh Interval */}
-        <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
-            <FontAwesomeIcon icon={faRefresh} style={{ marginRight: '0.5rem', color: '#f59e0b' }} />
-            {t('chartRefreshInterval') || 'Chart Refresh Interval (seconds)'}
-          </label>
-          <select
+          <ConfigRow
+            label={t('chartRefreshInterval') || 'Chart Refresh Interval'}
+            key="analytics_refresh_interval"
             value={getValue('analytics_refresh_interval')}
-            onChange={(e) => updateConfig('analytics_refresh_interval', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '10px', border: '1px solid #d1d5db', borderRadius: '8px' }}
-          >
-            <option value="60">{t('seconds60') || '60 seconds'}</option>
-            <option value="300">{t('minutes5') || '5 minutes'}</option>
-            <option value="600">{t('minutes10') || '10 minutes'}</option>
-            <option value="3600">{t('hour1') || '1 hour'}</option>
-          </select>
-          <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
-            How often charts automatically refresh with new data
-          </small>
-        </div>
+            description={t('chartRefreshIntervalDesc') || 'How often charts automatically refresh with new data'}
+            type="select"
+            icon={faRefresh}
+            options={[
+              { value: '60', label: '60 seconds' },
+              { value: '300', label: '5 minutes' },
+              { value: '600', label: '10 minutes' },
+              { value: '3600', label: '1 hour' },
+            ]}
+            onUpdate={updateConfig}
+            saving={saving}
+            canEdit={canEdit}
+          />
 
-        {/* Default Analytics Tab */}
-        <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
-            <FontAwesomeIcon icon={faChartBar} style={{ marginRight: '0.5rem', color: '#f59e0b' }} />
-            {t('defaultAnalyticsTab') || 'Default Analytics Tab'}
-          </label>
-          <select
+          <ConfigRow
+            label={t('defaultAnalyticsTab') || 'Default Analytics Tab'}
+            key="analytics_default_tab"
             value={getValue('analytics_default_tab')}
-            onChange={(e) => updateConfig('analytics_default_tab', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '10px', border: '1px solid #d1d5db', borderRadius: '8px' }}
-          >
-            <option value="operational">{t('operational') || 'Operational'}</option>
-            <option value="financial">{t('financial') || 'Financial'}</option>
-            <option value="inventory">{t('inventory') || 'Inventory'}</option>
-            <option value="workforce">{t('workforce') || 'Workforce'}</option>
-          </select>
-          <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
-            First tab shown when opening Analytics dashboard
-          </small>
-        </div>
+            description={t('defaultAnalyticsTabDesc') || 'First tab shown when opening Analytics dashboard'}
+            type="select"
+            icon={faChartBar}
+            options={[
+              { value: 'operational', label: 'Operational' },
+              { value: 'financial', label: 'Financial' },
+              { value: 'inventory', label: 'Inventory' },
+              { value: 'workforce', label: 'Workforce' },
+            ]}
+            onUpdate={updateConfig}
+            saving={saving}
+            canEdit={canEdit}
+          />
 
-        {/* Enable Caching */}
-        <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
-            <FontAwesomeIcon icon={faDatabase} style={{ marginRight: '0.5rem', color: '#f59e0b' }} />
-            {t('enableCaching') || 'Enable Caching'}
-          </label>
-          <select
+          <ConfigRow
+            label={t('enableCaching') || 'Enable Caching'}
+            key="analytics_caching_enabled"
             value={getValue('analytics_caching_enabled')}
-            onChange={(e) => updateConfig('analytics_caching_enabled', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '10px', border: '1px solid #d1d5db', borderRadius: '8px' }}
-          >
-            <option value="true">{t('enabled') || 'Enabled'}</option>
-            <option value="false">{t('disabled') || 'Disabled'}</option>
-          </select>
-          <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
-            Cache analytics data to improve performance
-          </small>
-        </div>
+            description={t('enableCachingDesc') || 'Cache analytics data to improve performance'}
+            type="select"
+            icon={faDatabase}
+            options={[
+              { value: 'true', label: 'Enabled' },
+              { value: 'false', label: 'Disabled' },
+            ]}
+            onUpdate={updateConfig}
+            saving={saving}
+            canEdit={canEdit}
+          />
 
-        {/* Cache Duration */}
-        <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
-            <FontAwesomeIcon icon={faClock} style={{ marginRight: '0.5rem', color: '#f59e0b' }} />
-            {t('cacheDuration') || 'Cache Duration (minutes)'}
-          </label>
-          <input
-            type="number"
+          <ConfigRow
+            label={t('cacheDuration') || 'Cache Duration (minutes)'}
+            key="analytics_cache_minutes"
             value={getValue('analytics_cache_minutes')}
-            onChange={(e) => updateConfig('analytics_cache_minutes', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '10px', border: '1px solid #d1d5db', borderRadius: '8px' }}
-          />
-          <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
-            How long to cache analytics data (only applies when caching is enabled)
-          </small>
-        </div>
-
-        {/* Top Products Limit */}
-        <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
-            <FontAwesomeIcon icon={faChartSimple} style={{ marginRight: '0.5rem', color: '#f59e0b' }} />
-            {t('topProductsLimit') || 'Top Products Limit'}
-          </label>
-          <input
+            description={t('cacheDurationDesc') || 'How long to cache analytics data (only applies when caching is enabled)'}
             type="number"
-            value={getValue('analytics_top_products_limit')}
-            onChange={(e) => updateConfig('analytics_top_products_limit', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '10px', border: '1px solid #d1d5db', borderRadius: '8px' }}
+            icon={faClock}
+            onUpdate={updateConfig}
+            saving={saving}
+            canEdit={canEdit}
           />
-          <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
-            Number of products to show in top selling charts
-          </small>
-        </div>
 
-        {/* Chart Type Preference */}
-        <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
-            <FontAwesomeIcon icon={faChartBar} style={{ marginRight: '0.5rem', color: '#f59e0b' }} />
-            {t('chartType') || 'Default Chart Type'}
-          </label>
-          <select
+          <ConfigRow
+            label={t('topProductsLimit') || 'Top Products Limit'}
+            key="analytics_top_products_limit"
+            value={getValue('analytics_top_products_limit')}
+            description={t('topProductsLimitDesc') || 'Number of products to show in top selling charts'}
+            type="number"
+            icon={faChartPie}
+            onUpdate={updateConfig}
+            saving={saving}
+            canEdit={canEdit}
+          />
+
+          <ConfigRow
+            label={t('chartType') || 'Default Chart Type'}
+            key="analytics_default_chart_type"
             value={getValue('analytics_default_chart_type')}
-            onChange={(e) => updateConfig('analytics_default_chart_type', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '10px', border: '1px solid #d1d5db', borderRadius: '8px' }}
-          >
-            <option value="line">{t('lineChart') || 'Line Chart'}</option>
-            <option value="bar">{t('barChart') || 'Bar Chart'}</option>
-            <option value="pie">{t('pieChart') || 'Pie Chart'}</option>
-          </select>
-          <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
-            Preferred chart type for revenue and sales data
-          </small>
-        </div>
+            description={t('chartTypeDesc') || 'Preferred chart type for revenue and sales data'}
+            type="select"
+            icon={faChartLine}
+            options={[
+              { value: 'line', label: 'Line Chart' },
+              { value: 'bar', label: 'Bar Chart' },
+              { value: 'pie', label: 'Pie Chart' },
+            ]}
+            onUpdate={updateConfig}
+            saving={saving}
+            canEdit={canEdit}
+          />
 
-        {/* Enable Real-time Updates */}
-        <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
-            <FontAwesomeIcon icon={faRefresh} style={{ marginRight: '0.5rem', color: '#f59e0b' }} />
-            {t('enableRealTime') || 'Enable Real-time Updates'}
-          </label>
-          <select
+          <ConfigRow
+            label={t('enableRealTime') || 'Enable Real-time Updates'}
+            key="analytics_realtime_enabled"
             value={getValue('analytics_realtime_enabled')}
-            onChange={(e) => updateConfig('analytics_realtime_enabled', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '10px', border: '1px solid #d1d5db', borderRadius: '8px' }}
-          >
-            <option value="true">{t('enabled') || 'Enabled'}</option>
-            <option value="false">{t('disabled') || 'Disabled'}</option>
-          </select>
-          <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
-            Automatically update charts when new data is available
-          </small>
-        </div>
+            description={t('enableRealTimeDesc') || 'Automatically update charts when new data is available'}
+            type="select"
+            icon={faRefresh}
+            options={[
+              { value: 'true', label: 'Enabled' },
+              { value: 'false', label: 'Disabled' },
+            ]}
+            onUpdate={updateConfig}
+            saving={saving}
+            canEdit={canEdit}
+          />
 
-        {/* Enable Predictive Analytics */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
-            <FontAwesomeIcon icon={faChartArea} style={{ marginRight: '0.5rem', color: '#f59e0b' }} />
-            {t('enablePredictiveAnalytics') || 'Enable Predictive Analytics'}
-          </label>
-          <select
+          <ConfigRow
+            label={t('enablePredictiveAnalytics') || 'Enable Predictive Analytics'}
+            key="analytics_predictive_enabled"
             value={getValue('analytics_predictive_enabled')}
-            onChange={(e) => updateConfig('analytics_predictive_enabled', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '10px', border: '1px solid #d1d5db', borderRadius: '8px' }}
-          >
-            <option value="true">{t('enabled') || 'Enabled'}</option>
-            <option value="false">{t('disabled') || 'Disabled'}</option>
-          </select>
-          <small style={{ color: '#6b7280', display: 'block', marginTop: '0.25rem' }}>
-            Show trend predictions based on historical data
-          </small>
+            description={t('enablePredictiveAnalyticsDesc') || 'Show trend predictions based on historical data'}
+            type="select"
+            icon={faChartLine}
+            options={[
+              { value: 'true', label: 'Enabled' },
+              { value: 'false', label: 'Disabled' },
+            ]}
+            onUpdate={updateConfig}
+            saving={saving}
+            canEdit={canEdit}
+          />
         </div>
 
         {saving && (
-          <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: COLORS.textMuted, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <FontAwesomeIcon icon={faSave} spin /> {t('saving') || 'Saving configuration...'}
           </div>
         )}
       </div>
+
+      <style jsx global>{`
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid ${COLORS.border};
+          border-top-color: ${COLORS.primary};
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

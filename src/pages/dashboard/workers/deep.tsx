@@ -1,6 +1,8 @@
+// src/pages/dashboard/workers/index.tsx
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -92,7 +94,7 @@ function WorkerRow({
 }: { 
   worker: Worker; 
   onEdit: (worker: Worker) => void; 
-  onDelete: (id: number) => void;
+  onDelete: (id: number, name: string, isActive: boolean) => void;
   onView: (id: number) => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
@@ -130,7 +132,7 @@ function WorkerRow({
       <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', color: COLORS.textSecondary }}>
         {worker.department_name || '-'}
       </td>
-      <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', fontWeight: '500', color: COLORS.primary }}>
+      <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', fontWeight: '500', color: COLORS.textPrimary }}>
         {worker.salary?.toLocaleString() || '-'}
       </td>
       <td style={{ padding: '0.75rem 1rem', fontSize: '0.8rem', color: COLORS.textSecondary }}>
@@ -154,6 +156,7 @@ function WorkerRow({
       </td>
       <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', gap: '0.3rem', justifyContent: 'center' }}>
+          {/* Edit Button */}
           <button
             onClick={() => onEdit(worker)}
             style={{
@@ -175,17 +178,22 @@ function WorkerRow({
           >
             <FontAwesomeIcon icon={faEdit} />
           </button>
+
+          {/* ✅ Delete/Deactivate Button - ICON ONLY, NO TEXT */}
           <button
-            onClick={() => onDelete(worker.id)}
+            onClick={() => {
+              onDelete(worker.id, worker.full_name, worker.is_active);
+            }}
             style={{
               background: 'transparent',
               border: 'none',
-              color: COLORS.danger,
+              color: worker.is_active ? COLORS.danger : COLORS.danger,
               cursor: 'pointer',
               padding: '0.2rem 0.5rem',
               borderRadius: '6px',
               transition: 'all 0.2s',
               fontSize: '0.8rem',
+              opacity: worker.is_active ? 1 : 0.8,
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = `${COLORS.danger}15`;
@@ -193,9 +201,12 @@ function WorkerRow({
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
+            title={worker.is_active ? 'Deactivate Worker' : 'Permanently Delete Worker'}
           >
-            <FontAwesomeIcon icon={faTrashAlt} />
+            <FontAwesomeIcon icon={worker.is_active ? faTimesCircle : faTrashAlt} />
           </button>
+
+          {/* View Button */}
           <Link href={`/dashboard/workers/${worker.id}`}>
             <button
               style={{
@@ -224,18 +235,64 @@ function WorkerRow({
   );
 }
 
+// ========== ACTION BUTTON ==========
+function ActionButton({ 
+  label, 
+  icon, 
+  onClick, 
+  color = COLORS.primary,
+  isActive = false
+}: { 
+  label: string; 
+  icon: any; 
+  onClick: () => void; 
+  color?: string;
+  isActive?: boolean;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        padding: '0.5rem 1rem',
+        background: isActive || isHovered ? color : 'white',
+        border: `1px solid ${isActive || isHovered ? color : COLORS.border}`,
+        borderRadius: '8px',
+        cursor: 'pointer',
+        fontSize: '0.8rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.4rem',
+        color: isActive || isHovered ? 'white' : COLORS.textSecondary,
+        transition: 'all 0.2s ease',
+        transform: isHovered ? 'scale(1.02)' : 'scale(1)',
+        boxShadow: isActive || isHovered ? `0 4px 12px ${color}40` : 'none',
+      }}
+    >
+      <FontAwesomeIcon icon={icon} style={{ fontSize: '0.8rem' }} />
+      {label}
+    </button>
+  );
+}
+
 export default function DeepWorkers() {
+  const router = useRouter();
   const { t } = useTranslation();
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [filteredWorkers, setFilteredWorkers] = useState<Worker[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
   const [uploading, setUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [activeButton, setActiveButton] = useState<string | null>(null);
   const [form, setForm] = useState({
     full_name: '',
     phone: '',
@@ -301,6 +358,85 @@ export default function DeepWorkers() {
     applyFilters(workers, searchTerm, departmentFilter);
   }, [searchTerm, departmentFilter, workers]);
 
+  // ========== TWO-STEP DELETE ==========
+  const handleDelete = async (workerId: number, workerName: string, isActive: boolean) => {
+    // ✅ STEP 1: If worker is ACTIVE → DEACTIVATE
+    if (isActive) {
+      if (!confirm(
+        `⚠️ Deactivate "${workerName}"?\n\n` +
+        `This will make the worker INACTIVE.\n` +
+        `They will not appear in active lists.\n\n` +
+        `Click OK to deactivate.\n` +
+        `Click Cancel to keep them active.`
+      )) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/workers/${workerId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          setMessage(`✅ "${workerName}" has been deactivated`);
+          fetchWorkers();
+          setTimeout(() => setMessage(''), 3000);
+        } else {
+          alert(data.error || 'Failed to deactivate worker');
+        }
+      } catch (err) {
+        console.error('Deactivate error:', err);
+        alert('Network error while deactivating worker');
+      }
+      return;
+    }
+
+    // ✅ STEP 2: If worker is INACTIVE → PERMANENT DELETE
+    if (!isActive) {
+      if (!confirm(
+        `⚠️⚠️ PERMANENT DELETE "${workerName}" ⚠️⚠️\n\n` +
+        `This worker is already INACTIVE.\n` +
+        `Clicking OK will PERMANENTLY DELETE this worker.\n` +
+        `This action CANNOT be undone!\n\n` +
+        `All associated data will be removed.`
+      )) {
+        return;
+      }
+
+      // Double confirmation for safety
+      if (!confirm(
+        `⚠️ FINAL WARNING\n\n` +
+        `Are you ABSOLUTELY sure you want to PERMANENTLY DELETE "${workerName}"?\n` +
+        `This action cannot be undone.`
+      )) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/workers/${workerId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          setMessage(`🗑️ "${workerName}" permanently deleted`);
+          fetchWorkers();
+          setTimeout(() => setMessage(''), 3000);
+        } else {
+          alert(data.error || 'Failed to delete worker');
+        }
+      } catch (err) {
+        console.error('Delete error:', err);
+        alert('Network error while deleting worker');
+      }
+    }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -363,17 +499,6 @@ export default function DeepWorkers() {
     }
   };
 
-  const handleDeactivate = async (id: number) => {
-    if (!confirm(t('confirmDeactivate'))) return;
-    try {
-      const res = await fetch(`/api/workers/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
-      if (res.ok) fetchWorkers();
-      else alert(t('deactivationFailed'));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const openEdit = (worker: Worker) => {
     setEditingWorker(worker);
     const formattedJoinDate = worker.join_date ? worker.join_date.split('T')[0] : '';
@@ -410,6 +535,8 @@ export default function DeepWorkers() {
     a.download = 'workers_deep.csv';
     a.click();
     URL.revokeObjectURL(url);
+    setActiveButton('export');
+    setTimeout(() => setActiveButton(null), 500);
   };
 
   const printWorkers = () => {
@@ -441,13 +568,14 @@ export default function DeepWorkers() {
     `);
     printWindow.document.close();
     printWindow.print();
+    setActiveButton('print');
+    setTimeout(() => setActiveButton(null), 500);
   };
 
-  // FIXED: Proper salary calculation
+  // Proper salary calculation
   const activeCount = workers.filter(w => w.is_active).length;
   const inactiveCount = workers.filter(w => !w.is_active).length;
   
-  // FIX: Properly sum salaries with number conversion
   const totalSalary = workers.reduce((sum, w) => {
     const salary = typeof w.salary === 'number' ? w.salary : parseFloat(w.salary) || 0;
     return sum + salary;
@@ -466,6 +594,13 @@ export default function DeepWorkers() {
   return (
     <DashboardLayout>
       <div style={{ padding: '0 1rem' }}>
+        {/* Messages */}
+        {message && (
+          <div style={{ marginBottom: '1rem', padding: '12px 16px', background: '#d1fae5', borderRadius: '8px', color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.5rem', borderLeft: `3px solid ${COLORS.success}` }}>
+            <FontAwesomeIcon icon={faCheckCircle} /> {message}
+          </div>
+        )}
+
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
@@ -478,87 +613,40 @@ export default function DeepWorkers() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button
+            <ActionButton
+              label={t('exportCSV') || 'Export CSV'}
+              icon={faFileExport}
               onClick={exportToCSV}
-              style={{
-                padding: '0.5rem 1rem',
-                background: COLORS.success,
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#059669';
-                e.currentTarget.style.transform = 'scale(1.02)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = COLORS.success;
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              <FontAwesomeIcon icon={faFileExport} /> {t('exportCSV') || 'Export CSV'}
-            </button>
-            <button
+              color={COLORS.success}
+              isActive={activeButton === 'export'}
+            />
+            <ActionButton
+              label={t('printPDF') || 'Print PDF'}
+              icon={faPrint}
               onClick={printWorkers}
-              style={{
-                padding: '0.5rem 1rem',
-                background: COLORS.primary,
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                transition: 'all 0.2s',
+              color={COLORS.primary}
+              isActive={activeButton === 'print'}
+            />
+            <ActionButton
+              label={t('addWorker') || 'Add Worker'}
+              icon={faPlus}
+              onClick={() => { 
+                setEditingWorker(null); 
+                setForm({ full_name: '', phone: '', email: '', department_id: '', salary: '', join_date: '', location: '', image_url: '', is_active: true }); 
+                setShowModal(true);
+                setActiveButton('add');
+                setTimeout(() => setActiveButton(null), 500);
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = COLORS.primaryDark;
-                e.currentTarget.style.transform = 'scale(1.02)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = COLORS.primary;
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              <FontAwesomeIcon icon={faPrint} /> {t('printPDF') || 'Print PDF'}
-            </button>
-            <button
-              onClick={() => { setEditingWorker(null); setForm({ full_name: '', phone: '', email: '', department_id: '', salary: '', join_date: '', location: '', image_url: '', is_active: true }); setShowModal(true); }}
-              style={{
-                padding: '0.5rem 1rem',
-                background: COLORS.primary,
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                transition: 'all 0.2s',
-                boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = COLORS.primaryDark;
-                e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = COLORS.primary;
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(245, 158, 11, 0.3)';
-              }}
-            >
-              <FontAwesomeIcon icon={faPlus} /> {t('addWorker') || 'Add Worker'}
-            </button>
+              color={COLORS.primary}
+              isActive={activeButton === 'add'}
+            />
+            <ActionButton
+              label={t('back') || 'Back'}
+              icon={faArrowLeft}
+              onClick={() => router.push('/dashboard/workers')}
+              color={COLORS.primary}
+              isActive={activeButton === 'back'}
+            />
           </div>
         </div>
 
@@ -737,7 +825,7 @@ export default function DeepWorkers() {
                     key={worker.id}
                     worker={worker}
                     onEdit={openEdit}
-                    onDelete={handleDeactivate}
+                    onDelete={(id, name, isActive) => handleDelete(id, name, isActive)}
                     onView={(id) => window.location.href = `/dashboard/workers/${id}`}
                   />
                 ))}
@@ -746,7 +834,7 @@ export default function DeepWorkers() {
           </div>
         )}
 
-        {/* Add/Edit Modal - stays the same */}
+        {/* Add/Edit Modal */}
         {showModal && (
           <div style={{
             position: 'fixed',

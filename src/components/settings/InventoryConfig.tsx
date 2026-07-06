@@ -1,14 +1,137 @@
+// src/components/settings/InventoryConfig.tsx
 import { useEffect, useState } from 'react';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSave } from '@fortawesome/free-solid-svg-icons';
+import { 
+  faSave, faBoxes, faExclamationTriangle, faCheckCircle,
+  faBox, faClock, faBell
+} from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ROLES } from "@/lib/roles";
+
+// ========== DESIGN TOKENS ==========
+const COLORS = {
+  primary: "#f59e0b",
+  primaryDark: "#d97706",
+  success: "#10b981",
+  danger: "#ef4444",
+  info: "#3b82f6",
+  textPrimary: "#111827",
+  textSecondary: "#6b7280",
+  textMuted: "#9ca3af",
+  bgGray: "#f9fafb",
+  border: "#e5e7eb",
+  shadow: "0 1px 3px rgba(0,0,0,0.06)",
+  shadowHover: "0 8px 25px rgba(0,0,0,0.08)",
+};
 
 interface Config {
   key: string;
   value: string;
   description: string;
+}
+
+function ConfigRow({ 
+  label, 
+  key, 
+  value, 
+  description, 
+  type = 'text',
+  options,
+  onUpdate,
+  saving,
+  canEdit,
+  icon
+}: { 
+  label: string; 
+  key: string; 
+  value: string; 
+  description: string; 
+  type?: 'text' | 'number' | 'select';
+  options?: { value: string; label: string }[];
+  onUpdate: (key: string, value: string) => void;
+  saving: boolean;
+  canEdit: boolean;
+  icon?: any;
+}) {
+  const [localValue, setLocalValue] = useState(value);
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleBlur = () => {
+    if (localValue !== value) {
+      onUpdate(key, localValue);
+    }
+  };
+
+  return (
+    <div 
+      style={{
+        marginBottom: '1.25rem',
+        paddingBottom: '1.25rem',
+        borderBottom: `1px solid ${COLORS.border}`,
+        transition: 'all 0.2s',
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+        {icon && <FontAwesomeIcon icon={icon} style={{ color: COLORS.primary, fontSize: '0.8rem' }} />}
+        <label style={{ 
+          fontWeight: '500', 
+          fontSize: '0.85rem',
+          color: COLORS.textPrimary,
+        }}>
+          {label}
+        </label>
+      </div>
+      {type === 'select' ? (
+        <select
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onBlur={handleBlur}
+          disabled={!canEdit || saving}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            border: `1px solid ${isHovered ? COLORS.primary : COLORS.border}`,
+            borderRadius: '8px',
+            fontSize: '0.9rem',
+            background: 'white',
+            transition: 'all 0.2s',
+            opacity: !canEdit ? 0.6 : 1,
+          }}
+        >
+          {options?.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={type}
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onBlur={handleBlur}
+          disabled={!canEdit || saving}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            border: `1px solid ${isHovered ? COLORS.primary : COLORS.border}`,
+            borderRadius: '8px',
+            fontSize: '0.9rem',
+            transition: 'all 0.2s',
+            opacity: !canEdit ? 0.6 : 1,
+          }}
+        />
+      )}
+      <small style={{ color: COLORS.textMuted, display: 'block', marginTop: '0.25rem', fontSize: '0.75rem' }}>
+        {description}
+      </small>
+    </div>
+  );
 }
 
 export default function InventoryConfigSettings() {
@@ -17,6 +140,7 @@ export default function InventoryConfigSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
   const userRole = typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('user') || '{}').role) : null;
   const canEdit = userRole === ROLES.SUPERADMIN;
@@ -56,8 +180,10 @@ export default function InventoryConfigSettings() {
       });
       if (!res.ok) throw new Error('Update failed');
       setConfigs(prev => prev.map(c => c.key === key ? { ...c, value } : c));
+      setMessage(`${key} updated successfully`);
+      setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {
-      alert(err.message);
+      setError(err.message);
     } finally {
       setSaving(false);
     }
@@ -69,90 +195,171 @@ export default function InventoryConfigSettings() {
     return config?.value || '';
   };
 
-  if (loading) return <div>{t('loadingInventoryConfig') || 'Loading inventory configuration...'}</div>;
-  if (error) return <div style={{ color: '#dc2626' }}>{t('error') || 'Error'}: {error}</div>;
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+        <div className="loading-spinner"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ color: COLORS.danger, padding: '1rem', background: '#fee2e2', borderRadius: '8px' }}>
+        <FontAwesomeIcon icon={faExclamationTriangle} /> {error}
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <h3>{t('inventoryConfiguration') || 'Inventory Configuration'}</h3>
-      <div style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', marginTop: '1rem' }}>
-        
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px' }}>{t('defaultLowStockThreshold') || 'Default Low Stock Threshold (units)'}</label>
-          <input
-            type="number"
-            value={getValue('inventory_default_low_stock_threshold')}
-            onChange={(e) => updateConfig('inventory_default_low_stock_threshold', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '6px' }}
-          />
-          <small style={{ color: '#6b7280' }}>{t('defaultLowStockThresholdDesc') || 'Global default when a product has no reorder level.'}</small>
-        </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px' }}>{t('enableAutoRestockAlerts') || 'Enable Automatic Restock Alerts'}</label>
-          <select
-            value={getValue('inventory_auto_restock_alerts')}
-            onChange={(e) => updateConfig('inventory_auto_restock_alerts', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '6px' }}
-          >
-            <option value="true">{t('enabled') || 'Enabled'}</option>
-            <option value="false">{t('disabled') || 'Disabled'}</option>
-          </select>
-        </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px' }}>{t('defaultReorderQuantity') || 'Default Reorder Quantity'}</label>
-          <input
-            type="number"
-            value={getValue('inventory_default_reorder_quantity')}
-            onChange={(e) => updateConfig('inventory_default_reorder_quantity', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '6px' }}
-          />
-          <small style={{ color: '#6b7280' }}>{t('defaultReorderQuantityDesc') || 'Suggested quantity when restocking low stock items.'}</small>
-        </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px' }}>{t('stockMovementRetention') || 'Stock Movement Retention (days)'}</label>
-          <input
-            type="number"
-            value={getValue('inventory_stock_movement_retention_days')}
-            onChange={(e) => updateConfig('inventory_stock_movement_retention_days', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '6px' }}
-          />
-          <small style={{ color: '#6b7280' }}>{t('stockMovementRetentionDesc') || 'How many days to keep stock movement logs.'}</small>
-        </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px' }}>{t('enableExpiryTracking') || 'Enable Expiry Tracking'}</label>
-          <select
-            value={getValue('inventory_enable_expiry_tracking')}
-            onChange={(e) => updateConfig('inventory_enable_expiry_tracking', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '6px' }}
-          >
-            <option value="true">{t('enabled') || 'Enabled'}</option>
-            <option value="false">{t('disabled') || 'Disabled'}</option>
-          </select>
-        </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'block', fontWeight: '500', marginBottom: '4px' }}>{t('expiryWarningDays') || 'Expiry Warning Days'}</label>
-          <input
-            type="number"
-            value={getValue('inventory_expiry_warning_days')}
-            onChange={(e) => updateConfig('inventory_expiry_warning_days', e.target.value)}
-            disabled={!canEdit || saving}
-            style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '6px' }}
-          />
-          <small style={{ color: '#6b7280' }}>{t('expiryWarningDaysDesc') || 'Send alert this many days before expiry.'}</small>
-        </div>
-
-        {saving && <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>{t('saving') || 'Saving...'}</span>}
+    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: '600', color: COLORS.textPrimary, margin: 0 }}>
+          <FontAwesomeIcon icon={faBoxes} style={{ color: COLORS.primary, marginRight: '0.5rem' }} />
+          {t('inventoryConfiguration') || 'Inventory Configuration'}
+        </h2>
+        <p style={{ fontSize: '0.85rem', color: COLORS.textMuted, margin: '0.15rem 0 0 0' }}>
+          {t('inventoryConfigDesc') || 'Configure inventory management settings and thresholds.'}
+        </p>
       </div>
+
+      {/* Messages */}
+      {message && (
+        <div style={{ marginBottom: '1rem', padding: '12px 16px', background: '#d1fae5', borderRadius: '8px', color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.5rem', borderLeft: `3px solid ${COLORS.success}` }}>
+          <FontAwesomeIcon icon={faCheckCircle} /> {message}
+        </div>
+      )}
+      {error && (
+        <div style={{ marginBottom: '1rem', padding: '12px 16px', background: '#fee2e2', borderRadius: '8px', color: '#991b1b', display: 'flex', alignItems: 'center', gap: '0.5rem', borderLeft: `3px solid ${COLORS.danger}` }}>
+          <FontAwesomeIcon icon={faExclamationTriangle} /> {error}
+        </div>
+      )}
+
+      <div style={{ 
+        background: 'white', 
+        padding: '1.5rem', 
+        borderRadius: '12px', 
+        boxShadow: COLORS.shadow,
+      }}>
+        {!canEdit && (
+          <div style={{
+            padding: '12px 16px',
+            background: '#fef3c7',
+            borderRadius: '8px',
+            marginBottom: '1rem',
+            color: '#92400e',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontSize: '0.85rem',
+            borderLeft: `3px solid ${COLORS.primary}`,
+          }}>
+            <FontAwesomeIcon icon={faExclamationTriangle} />
+            You have read-only access to these settings. Contact a Super Admin to make changes.
+          </div>
+        )}
+
+        <ConfigRow
+          label={t('defaultLowStockThreshold') || 'Default Low Stock Threshold (units)'}
+          key="inventory_default_low_stock_threshold"
+          value={getValue('inventory_default_low_stock_threshold')}
+          description={t('defaultLowStockThresholdDesc') || 'Global default when a product has no reorder level.'}
+          type="number"
+          icon={faBox}
+          onUpdate={updateConfig}
+          saving={saving}
+          canEdit={canEdit}
+        />
+
+        <ConfigRow
+          label={t('enableAutoRestockAlerts') || 'Enable Automatic Restock Alerts'}
+          key="inventory_auto_restock_alerts"
+          value={getValue('inventory_auto_restock_alerts')}
+          description={t('enableAutoRestockAlertsDesc') || 'Automatically send alerts when stock falls below threshold.'}
+          type="select"
+          icon={faBell}
+          options={[
+            { value: 'true', label: 'Enabled' },
+            { value: 'false', label: 'Disabled' },
+          ]}
+          onUpdate={updateConfig}
+          saving={saving}
+          canEdit={canEdit}
+        />
+
+        <ConfigRow
+          label={t('defaultReorderQuantity') || 'Default Reorder Quantity'}
+          key="inventory_default_reorder_quantity"
+          value={getValue('inventory_default_reorder_quantity')}
+          description={t('defaultReorderQuantityDesc') || 'Suggested quantity when restocking low stock items.'}
+          type="number"
+          icon={faBoxes}
+          onUpdate={updateConfig}
+          saving={saving}
+          canEdit={canEdit}
+        />
+
+        <ConfigRow
+          label={t('stockMovementRetention') || 'Stock Movement Retention (days)'}
+          key="inventory_stock_movement_retention_days"
+          value={getValue('inventory_stock_movement_retention_days')}
+          description={t('stockMovementRetentionDesc') || 'How many days to keep stock movement logs.'}
+          type="number"
+          icon={faClock}
+          onUpdate={updateConfig}
+          saving={saving}
+          canEdit={canEdit}
+        />
+
+        <ConfigRow
+          label={t('enableExpiryTracking') || 'Enable Expiry Tracking'}
+          key="inventory_enable_expiry_tracking"
+          value={getValue('inventory_enable_expiry_tracking')}
+          description={t('enableExpiryTrackingDesc') || 'Track product expiry dates and send alerts.'}
+          type="select"
+          icon={faClock}
+          options={[
+            { value: 'true', label: 'Enabled' },
+            { value: 'false', label: 'Disabled' },
+          ]}
+          onUpdate={updateConfig}
+          saving={saving}
+          canEdit={canEdit}
+        />
+
+        <ConfigRow
+          label={t('expiryWarningDays') || 'Expiry Warning Days'}
+          key="inventory_expiry_warning_days"
+          value={getValue('inventory_expiry_warning_days')}
+          description={t('expiryWarningDaysDesc') || 'Send alert this many days before expiry.'}
+          type="number"
+          icon={faBell}
+          onUpdate={updateConfig}
+          saving={saving}
+          canEdit={canEdit}
+        />
+
+        {saving && (
+          <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: COLORS.textMuted, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FontAwesomeIcon icon={faSave} spin /> {t('saving') || 'Saving configuration...'}
+          </div>
+        )}
+      </div>
+
+      <style jsx global>{`
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid ${COLORS.border};
+          border-top-color: ${COLORS.primary};
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

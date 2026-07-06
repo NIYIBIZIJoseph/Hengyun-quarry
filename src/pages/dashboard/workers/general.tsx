@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
+import { useRouter } from 'next/router';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -13,7 +14,7 @@ const COLORS = {
   primary: "#f59e0b",
   primaryDark: "#d97706",
   success: "#10b981",
-  danger: "#ef4444",      // ← ADDED
+  danger: "#ef4444",
   info: "#3b82f6",
   textPrimary: "#111827",
   textSecondary: "#6b7280",
@@ -35,6 +36,49 @@ interface SimpleWorker {
   phone: string;
   department_id: number;
   department_name: string;
+}
+
+// ========== ACTION BUTTON ==========
+function ActionButton({ 
+  label, 
+  icon, 
+  onClick, 
+  color = COLORS.primary,
+  isActive = false
+}: { 
+  label: string; 
+  icon: any; 
+  onClick: () => void; 
+  color?: string;
+  isActive?: boolean;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        padding: '0.5rem 1rem',
+        background: isActive || isHovered ? color : 'white',
+        border: `1px solid ${isActive || isHovered ? color : COLORS.border}`,
+        borderRadius: '8px',
+        cursor: 'pointer',
+        fontSize: '0.8rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.4rem',
+        color: isActive || isHovered ? 'white' : COLORS.textSecondary,
+        transition: 'all 0.2s ease',
+        transform: isHovered ? 'scale(1.02)' : 'scale(1)',
+        boxShadow: isActive || isHovered ? `0 4px 12px ${color}40` : 'none',
+      }}
+    >
+      <FontAwesomeIcon icon={icon} style={{ fontSize: '0.8rem' }} />
+      {label}
+    </button>
+  );
 }
 
 function WorkerRow({ worker }: { worker: SimpleWorker }) {
@@ -64,6 +108,7 @@ function WorkerRow({ worker }: { worker: SimpleWorker }) {
 }
 
 export default function GeneralWorkersList() {
+  const router = useRouter();
   const { t } = useTranslation();
   const [workers, setWorkers] = useState<SimpleWorker[]>([]);
   const [filteredWorkers, setFilteredWorkers] = useState<SimpleWorker[]>([]);
@@ -72,6 +117,7 @@ export default function GeneralWorkersList() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [activeButton, setActiveButton] = useState<string | null>(null);
 
   const fetchWorkers = async () => {
     try {
@@ -139,6 +185,8 @@ export default function GeneralWorkersList() {
     a.download = 'workers_general.csv';
     a.click();
     URL.revokeObjectURL(url);
+    setActiveButton('export');
+    setTimeout(() => setActiveButton(null), 500);
   };
 
   const printList = () => {
@@ -160,6 +208,8 @@ export default function GeneralWorkersList() {
     `);
     printWindow.document.close();
     printWindow.print();
+    setActiveButton('print');
+    setTimeout(() => setActiveButton(null), 500);
   };
 
   if (loading) {
@@ -196,79 +246,33 @@ export default function GeneralWorkersList() {
               {t('quickWorkerReference') || 'Quick reference list of all workers'}
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {/* Export CSV - Green when active */}
+            <ActionButton
+              label={t('exportCSV') || 'Export CSV'}
+              icon={faFileExport}
               onClick={exportToCSV}
-              style={{
-                padding: '0.5rem 1rem',
-                background: COLORS.success,
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = '0.8';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = '1';
-              }}
-            >
-              <FontAwesomeIcon icon={faFileExport} /> {t('exportCSV') || 'Export CSV'}
-            </button>
-            <button
+              color={COLORS.success}
+              isActive={activeButton === 'export'}
+            />
+            
+            {/* Print PDF - Gold when active */}
+            <ActionButton
+              label={t('printPDF') || 'Print PDF'}
+              icon={faPrint}
               onClick={printList}
-              style={{
-                padding: '0.5rem 1rem',
-                background: COLORS.primary,
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = COLORS.primaryDark;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = COLORS.primary;
-              }}
-            >
-              <FontAwesomeIcon icon={faPrint} /> {t('printPDF') || 'Print PDF'}
-            </button>
-            <button
-              onClick={() => window.history.back()}
-              style={{
-                padding: '0.5rem 1rem',
-                background: COLORS.bgGray,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                color: COLORS.textSecondary,
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = COLORS.border;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = COLORS.bgGray;
-              }}
-            >
-              <FontAwesomeIcon icon={faArrowLeft} /> {t('back') || 'Back'}
-            </button>
+              color={COLORS.primary}
+              isActive={activeButton === 'print'}
+            />
+            
+            {/* Back Button - Gold when active */}
+            <ActionButton
+              label={t('back') || 'Back'}
+              icon={faArrowLeft}
+              onClick={() => router.push('/dashboard/workers')}
+              color={COLORS.primary}
+              isActive={activeButton === 'back'}
+            />
           </div>
         </div>
 

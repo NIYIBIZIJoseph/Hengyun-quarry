@@ -1,3 +1,4 @@
+// src/pages/dashboard/settings/index.tsx
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -7,7 +8,7 @@ import {
   faUser, faKey, faBuilding, faClock, faChartLine, faBoxes,
   faHeadset, faBell, faShieldAlt, faDatabase, faPalette, faCrown,
   faUsers, faHistory, faSlidersH, faLock, faEnvelope, faPhone,
-  faGlobe, faPaintBrush, faCodeBranch
+  faGlobe, faPaintBrush, faCodeBranch, faChevronRight
 } from '@fortawesome/free-solid-svg-icons';
 
 import { useTranslation } from '@/hooks/useTranslation';
@@ -26,6 +27,66 @@ import UIPreferencesSettings from '@/components/settings/UIPreferences';
 import AdminControlsSettings from '@/components/settings/AdminControls';
 import TeamManagementSettings from '@/components/settings/TeamManagementSettings';
 import AuditLogs from '@/components/settings/AuditLogs';
+
+// ========== DESIGN TOKENS ==========
+const COLORS = {
+  primary: "#f59e0b",
+  primaryDark: "#d97706",
+  primaryLight: "#fbbf24",
+  success: "#10b981",
+  danger: "#ef4444",
+  info: "#3b82f6",
+  textPrimary: "#111827",
+  textSecondary: "#6b7280",
+  textMuted: "#9ca3af",
+  bgGray: "#f9fafb",
+  border: "#e5e7eb",
+  shadow: "0 1px 3px rgba(0,0,0,0.06)",
+  shadowHover: "0 8px 25px rgba(0,0,0,0.08)",
+};
+
+// ========== TAB BUTTON ==========
+function TabButton({ 
+  tab, 
+  active, 
+  onClick,
+  description
+}: { 
+  tab: any; 
+  active: boolean; 
+  onClick: () => void;
+  description: string;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        padding: '0.6rem 1.25rem',
+        background: active ? COLORS.primary : 'transparent',
+        color: active ? 'white' : (isHovered ? COLORS.textPrimary : COLORS.textSecondary),
+        border: 'none',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        fontWeight: active ? '600' : '400',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        transition: 'all 0.2s ease',
+        whiteSpace: 'nowrap',
+        boxShadow: active ? '0 4px 12px rgba(245, 158, 11, 0.3)' : 'none',
+        transform: isHovered && !active ? 'translateY(-2px)' : 'translateY(0)',
+      }}
+      title={description}
+    >
+      <FontAwesomeIcon icon={tab.icon} style={{ fontSize: '0.85rem' }} />
+      {tab.label}
+    </button>
+  );
+}
 
 export default function SettingsPage() {
   const { t } = useTranslation();
@@ -98,9 +159,18 @@ export default function SettingsPage() {
       case 'audit': return <AuditLogs />;
       default:
         return (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
-            <FontAwesomeIcon icon={faSlidersH} size="2x" style={{ marginBottom: '1rem' }} />
-            <p>Coming soon...</p>
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '4rem 2rem',
+            background: 'white',
+            borderRadius: '12px',
+            boxShadow: COLORS.shadow,
+          }}>
+            <FontAwesomeIcon icon={faSlidersH} size="3x" style={{ color: COLORS.textMuted, marginBottom: '1rem' }} />
+            <h3 style={{ color: COLORS.textSecondary }}>{t('comingSoon') || 'Coming soon...'}</h3>
+            <p style={{ color: COLORS.textMuted, fontSize: '0.85rem' }}>
+              {t('settingsComingSoon') || 'This settings section is under development'}
+            </p>
           </div>
         );
     }
@@ -109,7 +179,9 @@ export default function SettingsPage() {
   if (userRole === null) {
     return (
       <DashboardLayout>
-        <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+          <div className="loading-spinner"></div>
+        </div>
       </DashboardLayout>
     );
   }
@@ -117,46 +189,50 @@ export default function SettingsPage() {
   return (
     <DashboardLayout>
       <div style={{ padding: '0 1rem' }}>
-        <h1 style={{ fontSize: '1.8rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <FontAwesomeIcon icon={faSlidersH} /> {t('settings') || 'Settings'}
-        </h1>
-        <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
-          Manage your system preferences, user roles, and application settings.
-        </p>
+        {/* Header */}
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '12px',
+              background: `${COLORS.primary}15`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <FontAwesomeIcon icon={faSlidersH} style={{ color: COLORS.primary, fontSize: '1.5rem' }} />
+            </div>
+            <div>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: COLORS.textPrimary, margin: 0 }}>
+                {t('settings') || 'Settings'}
+              </h1>
+              <p style={{ fontSize: '0.85rem', color: COLORS.textSecondary, margin: '0.15rem 0 0 0' }}>
+                {t('manageSystemPreferences') || 'Manage your system preferences, user roles, and application settings.'}
+              </p>
+            </div>
+          </div>
+        </div>
 
-        {/* Tabs - Horizontal scroll on mobile */}
+        {/* Tabs */}
         <div style={{ 
           display: 'flex', 
-          gap: '8px', 
+          gap: '0.5rem', 
           flexWrap: 'wrap', 
           marginBottom: '2rem',
-          borderBottom: '1px solid #e5e7eb',
-          paddingBottom: '1rem',
-          overflowX: 'auto',
+          padding: '0.5rem',
+          background: COLORS.bgGray,
+          borderRadius: '12px',
+          border: `1px solid ${COLORS.border}`,
         }}>
           {visibleTabs.map((tabItem) => (
-            <button
+            <TabButton
               key={tabItem.id}
+              tab={tabItem}
+              active={activeTab === tabItem.id}
               onClick={() => setActiveTab(tabItem.id)}
-              style={{
-                padding: '10px 20px',
-                background: activeTab === tabItem.id ? '#f59e0b' : 'transparent',
-                color: activeTab === tabItem.id ? '#1f2937' : '#4b5563',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: activeTab === tabItem.id ? 'bold' : 'normal',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease',
-                whiteSpace: 'nowrap',
-              }}
-              title={tabItem.description}
-            >
-              <FontAwesomeIcon icon={tabItem.icon} />
-              {tabItem.label}
-            </button>
+              description={tabItem.description}
+            />
           ))}
         </div>
 
@@ -164,6 +240,20 @@ export default function SettingsPage() {
         <div style={{ marginTop: '1rem' }}>
           {renderTab()}
         </div>
+
+        <style jsx global>{`
+          .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid ${COLORS.border};
+            border-top-color: ${COLORS.primary};
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     </DashboardLayout>
   );

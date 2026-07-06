@@ -1,3 +1,4 @@
+// src/pages/dashboard/products.tsx
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getAuthHeaders } from '@/lib/auth-client';
@@ -7,7 +8,8 @@ import {
   faPlus, faEdit, faTrashAlt, faBoxOpen, 
   faBox, faExclamationTriangle, faCheckCircle, 
   faEye, faWarehouse, faChartLine, faFileExport, faSpinner,
-  faSearch
+  faSearch, faTimes, faChevronRight, faChevronLeft,
+  faImage, faTag, faMoneyBillWave
 } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -95,7 +97,7 @@ function StockBadge({ product }: { product: Product }) {
         gap: '0.2rem',
       }}>
         <FontAwesomeIcon icon={faBoxOpen} style={{ fontSize: '0.5rem' }} />
-        {t('outOfStock')}
+        {t('outOfStock') || 'Out of Stock'}
       </span>
     );
   }
@@ -114,7 +116,7 @@ function StockBadge({ product }: { product: Product }) {
         gap: '0.2rem',
       }}>
         <FontAwesomeIcon icon={faExclamationTriangle} style={{ fontSize: '0.5rem' }} />
-        {t('lowStock')} ({product.stock_quantity})
+        {t('lowStock') || 'Low Stock'} ({product.stock_quantity})
       </span>
     );
   }
@@ -132,7 +134,7 @@ function StockBadge({ product }: { product: Product }) {
       gap: '0.2rem',
     }}>
       <FontAwesomeIcon icon={faCheckCircle} style={{ fontSize: '0.5rem' }} />
-      {product.stock_quantity} {t('inStock')}
+      {product.stock_quantity} {t('inStock') || 'In Stock'}
     </span>
   );
 }
@@ -181,7 +183,18 @@ function ProductRow({
           <span style={{ fontWeight: '500', fontSize: '0.85rem', color: COLORS.textPrimary }}>{product.name}</span>
         </div>
       </td>
-      <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', color: COLORS.textSecondary }}>{product.category_name}</td>
+      <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', color: COLORS.textSecondary }}>
+        <span style={{
+          padding: '0.2rem 0.6rem',
+          borderRadius: '12px',
+          fontSize: '0.7rem',
+          fontWeight: '500',
+          background: `${COLORS.primary}15`,
+          color: COLORS.primary,
+        }}>
+          {product.category_name}
+        </span>
+      </td>
       <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontSize: '0.85rem', fontWeight: '600', color: COLORS.primary }}>
         {product.price?.toLocaleString()}
       </td>
@@ -190,11 +203,33 @@ function ProductRow({
       </td>
       <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
         {product.is_active ? (
-          <span style={{ color: COLORS.success, fontSize: '0.75rem' }}>
-            <FontAwesomeIcon icon={faCheckCircle} /> {t('active') || 'Active'}
+          <span style={{ 
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+            padding: '0.2rem 0.6rem',
+            borderRadius: '12px',
+            fontSize: '0.7rem',
+            fontWeight: '500',
+            background: '#d1fae5',
+            color: '#065f46',
+          }}>
+            <FontAwesomeIcon icon={faCheckCircle} style={{ fontSize: '0.4rem' }} />
+            {t('active') || 'Active'}
           </span>
         ) : (
-          <span style={{ color: COLORS.textMuted, fontSize: '0.75rem' }}>
+          <span style={{ 
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+            padding: '0.2rem 0.6rem',
+            borderRadius: '12px',
+            fontSize: '0.7rem',
+            fontWeight: '500',
+            background: '#fee2e2',
+            color: '#991b1b',
+          }}>
+            <FontAwesomeIcon icon={faTimes} style={{ fontSize: '0.4rem' }} />
             {t('inactive') || 'Inactive'}
           </span>
         )}
@@ -243,12 +278,34 @@ function ProductRow({
           >
             <FontAwesomeIcon icon={faTrashAlt} />
           </button>
+          <button
+            onClick={() => onSelect(product)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: COLORS.primary,
+              cursor: 'pointer',
+              padding: '0.3rem 0.6rem',
+              borderRadius: '6px',
+              transition: 'all 0.2s',
+              fontSize: '0.85rem',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = `${COLORS.primary}15`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            <FontAwesomeIcon icon={faEye} />
+          </button>
         </div>
       </td>
     </tr>
   );
 }
 
+// ========== MAIN COMPONENT ==========
 export default function ProductsPortal() {
   const { t } = useTranslation();
   const [products, setProducts] = useState<Product[]>([]);
@@ -264,6 +321,7 @@ export default function ProductsPortal() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [form, setForm] = useState({
     name: '',
     category_id: '',
@@ -330,19 +388,19 @@ export default function ProductsPortal() {
 
   const exportToCSV = () => {
     const csvData = filtered.map(p => ({
-      [t('productName')]: p.name,
-      [t('category')]: p.category_name,
-      [t('price')]: p.price,
-      [t('stock')]: p.stock_quantity,
-      [t('reorderLevel')]: p.reorder_level,
-      [t('status')]: p.is_active ? t('active') : t('inactive'),
+      [t('productName') || 'Product Name']: p.name,
+      [t('category') || 'Category']: p.category_name,
+      [t('price') || 'Price']: p.price,
+      [t('stock') || 'Stock']: p.stock_quantity,
+      [t('reorderLevel') || 'Reorder Level']: p.reorder_level,
+      [t('status') || 'Status']: p.is_active ? (t('active') || 'Active') : (t('inactive') || 'Inactive'),
     }));
     const csv = Papa.unparse(csvData);
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${t('productsExport')}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `${t('productsExport') || 'products'}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -356,10 +414,15 @@ export default function ProductsPortal() {
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
       const data = await res.json();
-      if (res.ok) setForm({ ...form, image_url: data.url });
-      else setError(data.message || t('uploadFailed'));
+      if (res.ok) {
+        setForm({ ...form, image_url: data.url });
+        setMessage('Image uploaded successfully');
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        setError(data.message || t('uploadFailed') || 'Upload failed');
+      }
     } catch (err) {
-      setError(t('networkError'));
+      setError(t('networkError') || 'Network error');
     } finally {
       setUploading(false);
     }
@@ -367,10 +430,14 @@ export default function ProductsPortal() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setMessage('');
+    
     if (!form.name.trim() || !form.category_id) {
-      setError(t('nameCategoryRequired'));
+      setError(t('nameCategoryRequired') || 'Name and category are required');
       return;
     }
+    
     const url = editingProduct ? `/api/products/${editingProduct.id}` : '/api/products';
     const method = editingProduct ? 'PUT' : 'POST';
     const payload = {
@@ -383,6 +450,7 @@ export default function ProductsPortal() {
       reorder_level: parseInt(form.reorder_level) || 20,
       is_active: form.is_active,
     };
+    
     try {
       const res = await fetch(url, {
         method,
@@ -390,6 +458,8 @@ export default function ProductsPortal() {
         body: JSON.stringify(payload),
       });
       if (res.ok) {
+        setMessage(editingProduct ? 'Product updated successfully' : 'Product added successfully');
+        setTimeout(() => setMessage(''), 3000);
         fetchProducts();
         setShowModal(false);
         setEditingProduct(null);
@@ -397,17 +467,29 @@ export default function ProductsPortal() {
         setError('');
       } else {
         const err = await res.json();
-        setError(err.message || t('saveFailed'));
+        setError(err.message || t('saveFailed') || 'Save failed');
       }
     } catch (err) {
-      setError(t('networkError'));
+      setError(t('networkError') || 'Network error');
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm(t('confirmDelete'))) return;
-    await fetch(`/api/products/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
-    fetchProducts();
+    if (!confirm(t('confirmDelete') || 'Are you sure you want to delete this product?')) return;
+    try {
+      const res = await fetch(`/api/products/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (res.ok) {
+        setMessage('Product deleted successfully');
+        setTimeout(() => setMessage(''), 3000);
+        fetchProducts();
+        setShowDrawer(false);
+      } else {
+        const err = await res.json();
+        setError(err.message || t('deleteFailed') || 'Delete failed');
+      }
+    } catch (err) {
+      setError(t('networkError') || 'Network error');
+    }
   };
 
   const openEdit = (product: Product) => {
@@ -433,7 +515,7 @@ export default function ProductsPortal() {
     return (
       <DashboardLayout>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-          <FontAwesomeIcon icon={faSpinner} spin style={{ color: COLORS.primary, fontSize: '2rem' }} />
+          <div className="loading-spinner"></div>
         </div>
       </DashboardLayout>
     );
@@ -441,285 +523,629 @@ export default function ProductsPortal() {
 
   return (
     <DashboardLayout>
-      {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: COLORS.textPrimary, margin: 0 }}>
-            {t('products') || 'Products'}
-          </h1>
-          <p style={{ fontSize: '0.85rem', color: COLORS.textSecondary, margin: '0.15rem 0 0 0' }}>
-            {t('manageProductInventory') || 'Manage your product inventory'}
-          </p>
-        </div>
-        <button
-          onClick={() => { setEditingProduct(null); setForm({ name: '', category_id: categories[0]?.id.toString() || '', price: '', stock_quantity: '', description: '', image_url: '', reorder_level: '20', is_active: true }); setShowModal(true); }}
-          style={{
-            background: COLORS.primary,
-            border: 'none',
-            padding: '0.6rem 1.5rem',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            color: 'white',
-            fontWeight: '600',
-            fontSize: '0.85rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.2s',
-            boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = COLORS.primaryDark;
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = COLORS.primary;
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(245, 158, 11, 0.3)';
-          }}
-        >
-          <FontAwesomeIcon icon={faPlus} /> {t('addProduct') || 'Add Product'}
-        </button>
-      </div>
-
-      {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-        <KpiCard
-          title={t('totalProducts') || 'Total Products'}
-          value={products.length}
-          icon={faBox}
-          color={COLORS.info}
-        />
-        <KpiCard
-          title={t('lowStock') || 'Low Stock'}
-          value={lowStockCount}
-          icon={faExclamationTriangle}
-          color={COLORS.warning}
-          bgColor={lowStockCount > 0 ? '#fef3c7' : 'white'}
-        />
-        <KpiCard
-          title={t('outOfStock') || 'Out of Stock'}
-          value={outOfStockCount}
-          icon={faBoxOpen}
-          color={COLORS.danger}
-          bgColor={outOfStockCount > 0 ? '#fee2e2' : 'white'}
-        />
-        <KpiCard
-          title={t('inventoryValue') || 'Inventory Value'}
-          value={`${inventoryValue.toLocaleString()} RWF`}
-          icon={faChartLine}
-          color={COLORS.primary}
-        />
-      </div>
-
-      {/* Low stock alert banner */}
-      {lowStockCount > 0 && (
-        <div style={{
-          background: '#fef3c7',
-          borderLeft: `4px solid ${COLORS.primary}`,
-          padding: '0.6rem 1rem',
-          borderRadius: '8px',
-          marginBottom: '1rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-        }}>
-          <FontAwesomeIcon icon={faExclamationTriangle} style={{ color: COLORS.primary }} />
-          <span style={{ fontSize: '0.85rem', color: '#92400e' }}>
-            {t('lowStockAlert') || `${lowStockCount} products are running low on stock.`}
-          </span>
-        </div>
-      )}
-
-      {/* Toolbar */}
-      <div style={{
-        display: 'flex',
-        gap: '1rem',
-        flexWrap: 'wrap',
-        marginBottom: '1rem',
-        justifyContent: 'space-between',
-        background: 'white',
-        padding: '1rem',
-        borderRadius: '12px',
-        boxShadow: COLORS.shadow,
-      }}>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', flex: 1 }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
-            <FontAwesomeIcon icon={faSearch} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: COLORS.textMuted }} />
-            <input
-              type="text"
-              placeholder={t('searchByName') || 'Search by name...'}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                padding: '0.5rem 0.75rem 0.5rem 2.2rem',
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: '8px',
-                width: '100%',
-                fontSize: '0.85rem',
-                background: COLORS.bgGray,
-                transition: 'all 0.2s',
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = COLORS.primary;
-                e.currentTarget.style.boxShadow = `0 0 0 3px ${COLORS.primary}20`;
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = COLORS.border;
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            />
+      <div style={{ padding: '0 1rem' }}>
+        {/* Page Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: COLORS.textPrimary, margin: 0 }}>
+              <FontAwesomeIcon icon={faBox} style={{ color: COLORS.primary, marginRight: '0.5rem' }} />
+              {t('products') || 'Products'}
+            </h1>
+            <p style={{ fontSize: '0.85rem', color: COLORS.textSecondary, margin: '0.15rem 0 0 0' }}>
+              {t('manageProductInventory') || 'Manage your product inventory'}
+            </p>
           </div>
-          <select
-            value={categoryFilter}
-            onChange={e => setCategoryFilter(e.target.value)}
+          <button
+            onClick={() => { 
+              setEditingProduct(null); 
+              setForm({ name: '', category_id: categories[0]?.id.toString() || '', price: '', stock_quantity: '', description: '', image_url: '', reorder_level: '20', is_active: true }); 
+              setShowModal(true); 
+              setError('');
+              setMessage('');
+            }}
             style={{
-              padding: '0.5rem 0.75rem',
-              border: `1px solid ${COLORS.border}`,
+              background: COLORS.primary,
+              border: 'none',
+              padding: '0.6rem 1.5rem',
               borderRadius: '8px',
+              cursor: 'pointer',
+              color: 'white',
+              fontWeight: '600',
               fontSize: '0.85rem',
-              background: COLORS.bgGray,
-              minWidth: '140px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 8px rgba(245, 158, 11, 0.3)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = COLORS.primaryDark;
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = COLORS.primary;
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(245, 158, 11, 0.3)';
             }}
           >
-            <option value="all">{t('allCategories') || 'All Categories'}</option>
-            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            style={{
-              padding: '0.5rem 0.75rem',
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: '8px',
-              fontSize: '0.85rem',
-              background: COLORS.bgGray,
-              minWidth: '140px',
-            }}
-          >
-            <option value="all">{t('allStock') || 'All Stock'}</option>
-            <option value="low">{t('lowStock') || 'Low Stock'}</option>
-            <option value="out">{t('outOfStock') || 'Out of Stock'}</option>
-            <option value="active">{t('active') || 'Active'}</option>
-            <option value="inactive">{t('inactive') || 'Inactive'}</option>
-          </select>
+            <FontAwesomeIcon icon={faPlus} /> {t('addProduct') || 'Add Product'}
+          </button>
         </div>
-        <button
-          onClick={exportToCSV}
-          style={{
-            background: COLORS.bgGray,
-            border: `1px solid ${COLORS.border}`,
-            padding: '0.5rem 1rem',
+
+        {/* Messages */}
+        {message && (
+          <div style={{ marginBottom: '1rem', padding: '12px 16px', background: '#d1fae5', borderRadius: '8px', color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.5rem', borderLeft: `3px solid ${COLORS.success}` }}>
+            <FontAwesomeIcon icon={faCheckCircle} /> {message}
+          </div>
+        )}
+        {error && (
+          <div style={{ marginBottom: '1rem', padding: '12px 16px', background: '#fee2e2', borderRadius: '8px', color: '#991b1b', display: 'flex', alignItems: 'center', gap: '0.5rem', borderLeft: `3px solid ${COLORS.danger}` }}>
+            <FontAwesomeIcon icon={faExclamationTriangle} /> {error}
+          </div>
+        )}
+
+        {/* KPI Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          <KpiCard
+            title={t('totalProducts') || 'Total Products'}
+            value={products.length}
+            icon={faBox}
+            color={COLORS.info}
+          />
+          <KpiCard
+            title={t('lowStock') || 'Low Stock'}
+            value={lowStockCount}
+            icon={faExclamationTriangle}
+            color={COLORS.warning}
+            bgColor={lowStockCount > 0 ? '#fef3c7' : 'white'}
+          />
+          <KpiCard
+            title={t('outOfStock') || 'Out of Stock'}
+            value={outOfStockCount}
+            icon={faBoxOpen}
+            color={COLORS.danger}
+            bgColor={outOfStockCount > 0 ? '#fee2e2' : 'white'}
+          />
+          <KpiCard
+            title={t('inventoryValue') || 'Inventory Value'}
+            value={`${inventoryValue.toLocaleString()} RWF`}
+            icon={faChartLine}
+            color={COLORS.primary}
+          />
+        </div>
+
+        {/* Low stock alert banner */}
+        {lowStockCount > 0 && (
+          <div style={{
+            background: '#fef3c7',
+            borderLeft: `4px solid ${COLORS.primary}`,
+            padding: '0.6rem 1rem',
             borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '0.85rem',
+            marginBottom: '1rem',
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = COLORS.primary;
-            e.currentTarget.style.color = 'white';
-            e.currentTarget.style.borderColor = COLORS.primary;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = COLORS.bgGray;
-            e.currentTarget.style.color = COLORS.textPrimary;
-            e.currentTarget.style.borderColor = COLORS.border;
-          }}
-        >
-          <FontAwesomeIcon icon={faFileExport} /> {t('exportCSV') || 'Export CSV'}
-        </button>
-      </div>
+          }}>
+            <FontAwesomeIcon icon={faExclamationTriangle} style={{ color: COLORS.primary }} />
+            <span style={{ fontSize: '0.85rem', color: '#92400e' }}>
+              {t('lowStockAlert') || `${lowStockCount} products are running low on stock.`}
+            </span>
+          </div>
+        )}
 
-      {/* Product Table */}
-      {filtered.length === 0 ? (
+        {/* Toolbar */}
         <div style={{
-          textAlign: 'center',
-          padding: '4rem 2rem',
+          display: 'flex',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          marginBottom: '1rem',
+          justifyContent: 'space-between',
           background: 'white',
+          padding: '1rem',
           borderRadius: '12px',
           boxShadow: COLORS.shadow,
         }}>
-          <FontAwesomeIcon icon={faBox} style={{ fontSize: '3rem', color: COLORS.textMuted, marginBottom: '1rem' }} />
-          <h3 style={{ color: COLORS.textSecondary }}>{t('noProductsFound') || 'No products found'}</h3>
-          <p style={{ color: COLORS.textMuted, fontSize: '0.85rem' }}>
-            {t('tryAdjustingFilters') || 'Try adjusting your search or filters'}
-          </p>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', flex: 1 }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+              <FontAwesomeIcon icon={faSearch} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: COLORS.textMuted }} />
+              <input
+                type="text"
+                placeholder={t('searchByName') || 'Search by name...'}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{
+                  padding: '0.5rem 0.75rem 0.5rem 2.2rem',
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: '8px',
+                  width: '100%',
+                  fontSize: '0.85rem',
+                  background: COLORS.bgGray,
+                  transition: 'all 0.2s',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = COLORS.primary;
+                  e.currentTarget.style.boxShadow = `0 0 0 3px ${COLORS.primary}20`;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = COLORS.border;
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+            </div>
+            <select
+              value={categoryFilter}
+              onChange={e => setCategoryFilter(e.target.value)}
+              style={{
+                padding: '0.5rem 0.75rem',
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                background: COLORS.bgGray,
+                minWidth: '140px',
+              }}
+            >
+              <option value="all">{t('allCategories') || 'All Categories'}</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              style={{
+                padding: '0.5rem 0.75rem',
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                background: COLORS.bgGray,
+                minWidth: '140px',
+              }}
+            >
+              <option value="all">{t('allStock') || 'All Stock'}</option>
+              <option value="low">{t('lowStock') || 'Low Stock'}</option>
+              <option value="out">{t('outOfStock') || 'Out of Stock'}</option>
+              <option value="active">{t('active') || 'Active'}</option>
+              <option value="inactive">{t('inactive') || 'Inactive'}</option>
+            </select>
+          </div>
+          <button
+            onClick={exportToCSV}
+            style={{
+              background: COLORS.bgGray,
+              border: `1px solid ${COLORS.border}`,
+              padding: '0.5rem 1rem',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = COLORS.primary;
+              e.currentTarget.style.color = 'white';
+              e.currentTarget.style.borderColor = COLORS.primary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = COLORS.bgGray;
+              e.currentTarget.style.color = COLORS.textPrimary;
+              e.currentTarget.style.borderColor = COLORS.border;
+            }}
+          >
+            <FontAwesomeIcon icon={faFileExport} /> {t('exportCSV') || 'Export CSV'}
+          </button>
         </div>
-      ) : (
-        <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', boxShadow: COLORS.shadow }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: COLORS.bgGray, borderBottom: `1px solid ${COLORS.border}` }}>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
-                  {t('productName') || 'Product'}
-                </th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
-                  {t('category') || 'Category'}
-                </th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'right', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
-                  {t('price') || 'Price (RWF)'}
-                </th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'center', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
-                  {t('stock') || 'Stock'}
-                </th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'center', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
-                  {t('status') || 'Status'}
-                </th>
-                <th style={{ padding: '0.75rem 1rem', textAlign: 'center', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
-                  {t('actions') || 'Actions'}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((p) => (
-                <ProductRow
-                  key={p.id}
-                  product={p}
-                  onEdit={openEdit}
-                  onDelete={handleDelete}
-                  onSelect={(product) => { setSelectedProduct(product); setShowDrawer(true); }}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
 
-      {/* Add/Edit Modal */}
-      {showModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          backdropFilter: 'blur(4px)',
-        }} onClick={() => setShowModal(false)}>
+        {/* Product Table */}
+        {filtered.length === 0 ? (
           <div style={{
+            textAlign: 'center',
+            padding: '4rem 2rem',
             background: 'white',
-            padding: '2rem',
-            borderRadius: '16px',
-            width: '550px',
-            maxWidth: '90%',
-            maxHeight: '90vh',
+            borderRadius: '12px',
+            boxShadow: COLORS.shadow,
+          }}>
+            <FontAwesomeIcon icon={faBox} style={{ fontSize: '3rem', color: COLORS.textMuted, marginBottom: '1rem' }} />
+            <h3 style={{ color: COLORS.textSecondary }}>{t('noProductsFound') || 'No products found'}</h3>
+            <p style={{ color: COLORS.textMuted, fontSize: '0.85rem' }}>
+              {t('tryAdjustingFilters') || 'Try adjusting your search or filters'}
+            </p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', boxShadow: COLORS.shadow }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: COLORS.bgGray, borderBottom: `1px solid ${COLORS.border}` }}>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    {t('productName') || 'Product'}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    {t('category') || 'Category'}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'right', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    {t('price') || 'Price (RWF)'}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    {t('stock') || 'Stock'}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    {t('status') || 'Status'}
+                  </th>
+                  <th style={{ padding: '0.75rem 1rem', textAlign: 'center', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: COLORS.textMuted, fontWeight: '600' }}>
+                    {t('actions') || 'Actions'}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((p) => (
+                  <ProductRow
+                    key={p.id}
+                    product={p}
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                    onSelect={(product) => { setSelectedProduct(product); setShowDrawer(true); }}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Add/Edit Modal */}
+        {showModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(4px)',
+          }} onClick={() => setShowModal(false)}>
+            <div style={{
+              background: 'white',
+              padding: '2rem',
+              borderRadius: '16px',
+              width: '550px',
+              maxWidth: '90%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: COLORS.shadowHover,
+              animation: 'slideUp 0.3s ease',
+            }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: COLORS.textPrimary, margin: 0 }}>
+                  <FontAwesomeIcon icon={editingProduct ? faEdit : faPlus} style={{ color: COLORS.primary, marginRight: '0.5rem' }} />
+                  {editingProduct ? t('editProduct') || 'Edit Product' : t('addProduct') || 'Add Product'}
+                </h2>
+                <button
+                  onClick={() => setShowModal(false)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: '1.5rem',
+                    cursor: 'pointer',
+                    color: COLORS.textMuted,
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = COLORS.textPrimary;
+                    e.currentTarget.style.transform = 'rotate(90deg)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = COLORS.textMuted;
+                    e.currentTarget.style.transform = 'rotate(0)';
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                    {t('productNameRequired') || 'Product Name *'}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={t('productNameRequired') || 'Enter product name'}
+                    value={form.name}
+                    onChange={e => setForm({ ...form, name: e.target.value })}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.6rem 0.75rem',
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      transition: 'all 0.2s',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = COLORS.primary;
+                      e.currentTarget.style.boxShadow = `0 0 0 3px ${COLORS.primary}20`;
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = COLORS.border;
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                    {t('category') || 'Category *'}
+                  </label>
+                  <select
+                    value={form.category_id}
+                    onChange={e => setForm({ ...form, category_id: e.target.value })}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.6rem 0.75rem',
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      background: 'white',
+                    }}
+                  >
+                    <option value="">{t('selectCategory') || 'Select Category'}</option>
+                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                      {t('priceRWF') || 'Price (RWF)'}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={form.price}
+                      onChange={e => setForm({ ...form, price: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.75rem',
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: '8px',
+                        fontSize: '0.9rem',
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                      {t('stockQuantity') || 'Stock Quantity'}
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={form.stock_quantity}
+                      onChange={e => setForm({ ...form, stock_quantity: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.75rem',
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: '8px',
+                        fontSize: '0.9rem',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                    {t('reorderLevel') || 'Reorder Level'}
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="20"
+                    value={form.reorder_level}
+                    onChange={e => setForm({ ...form, reorder_level: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.6rem 0.75rem',
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                    {t('description') || 'Description'}
+                  </label>
+                  <textarea
+                    placeholder={t('description') || 'Product description...'}
+                    value={form.description}
+                    onChange={e => setForm({ ...form, description: e.target.value })}
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      padding: '0.6rem 0.75rem',
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      resize: 'vertical',
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                    <FontAwesomeIcon icon={faImage} style={{ marginRight: '0.3rem', color: COLORS.primary }} />
+                    {t('productImage') || 'Product Image'}
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      style={{
+                        padding: '0.4rem',
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        flex: 1,
+                      }}
+                    />
+                    {uploading && (
+                      <span style={{ fontSize: '0.8rem', color: COLORS.textMuted }}>
+                        <FontAwesomeIcon icon={faSpinner} spin /> {t('uploading') || 'Uploading...'}
+                      </span>
+                    )}
+                  </div>
+                  {form.image_url && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <img src={form.image_url} alt="Preview" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: `1px solid ${COLORS.border}` }} />
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    placeholder={t('orEnterImageUrl') || 'Or enter image URL'}
+                    value={form.image_url}
+                    onChange={e => setForm({ ...form, image_url: e.target.value })}
+                    style={{
+                      width: '100%',
+                      marginTop: '0.5rem',
+                      padding: '0.6rem 0.75rem',
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                    }}
+                  />
+                </div>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={form.is_active}
+                    onChange={e => setForm({ ...form, is_active: e.target.checked })}
+                    style={{ width: '16px', height: '16px', accentColor: COLORS.primary }}
+                  />
+                  <span style={{ fontSize: '0.85rem', color: COLORS.textSecondary }}>{t('active') || 'Active'}</span>
+                </label>
+
+                {error && (
+                  <div style={{
+                    color: COLORS.danger,
+                    fontSize: '0.85rem',
+                    marginTop: '1rem',
+                    padding: '0.5rem 0.75rem',
+                    background: '#fee2e2',
+                    borderRadius: '8px',
+                  }}>
+                    {error}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    style={{
+                      padding: '0.6rem 1.5rem',
+                      background: COLORS.bgGray,
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      color: COLORS.textSecondary,
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = COLORS.border;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = COLORS.bgGray;
+                    }}
+                  >
+                    {t('cancel') || 'Cancel'}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploading}
+                    style={{
+                      padding: '0.6rem 1.5rem',
+                      background: COLORS.primary,
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: uploading ? 'not-allowed' : 'pointer',
+                      fontSize: '0.85rem',
+                      color: 'white',
+                      fontWeight: '600',
+                      transition: 'all 0.2s',
+                      opacity: uploading ? 0.6 : 1,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!uploading) {
+                        e.currentTarget.style.backgroundColor = COLORS.primaryDark;
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!uploading) {
+                        e.currentTarget.style.backgroundColor = COLORS.primary;
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }
+                    }}
+                  >
+                    {editingProduct ? (t('update') || 'Update') : (t('save') || 'Save')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Product Detail Drawer */}
+        {showDrawer && selectedProduct && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            width: '450px',
+            height: '100%',
+            background: 'white',
+            boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
+            zIndex: 1000,
+            padding: '1.5rem',
             overflowY: 'auto',
-            boxShadow: COLORS.shadowHover,
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            animation: 'slideIn 0.3s ease',
+          }}>
+            <style>{`
+              @keyframes slideIn {
+                from { transform: translateX(100%); }
+                to { transform: translateX(0); }
+              }
+              @keyframes slideUp {
+                from { opacity: 0; transform: translateY(20px) scale(0.95); }
+                to { opacity: 1; transform: translateY(0) scale(1); }
+              }
+              .loading-spinner {
+                width: 40px;
+                height: 40px;
+                border: 4px solid ${COLORS.border};
+                border-top-color: ${COLORS.primary};
+                border-radius: 50%;
+                animation: spin 0.8s linear infinite;
+              }
+              @keyframes spin {
+                to { transform: rotate(360deg); }
+              }
+            `}</style>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: COLORS.textPrimary, margin: 0 }}>
-                {editingProduct ? t('editProduct') || 'Edit Product' : t('addProduct') || 'Add Product'}
+                {selectedProduct.name}
               </h2>
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => setShowDrawer(false)}
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -727,6 +1153,7 @@ export default function ProductsPortal() {
                   cursor: 'pointer',
                   color: COLORS.textMuted,
                   transition: 'all 0.2s',
+                  padding: '0.25rem',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = COLORS.textPrimary;
@@ -741,452 +1168,149 @@ export default function ProductsPortal() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
-                  {t('productNameRequired') || 'Product Name *'}
-                </label>
-                <input
-                  type="text"
-                  placeholder={t('productNameRequired') || 'Enter product name'}
-                  value={form.name}
-                  onChange={e => setForm({ ...form, name: e.target.value })}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    transition: 'all 0.2s',
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = COLORS.primary;
-                    e.currentTarget.style.boxShadow = `0 0 0 3px ${COLORS.primary}20`;
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = COLORS.border;
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                />
-              </div>
+            <div style={{
+              width: '100%',
+              height: '220px',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              marginBottom: '1rem',
+              background: COLORS.bgGray,
+            }}>
+              <img
+                src={selectedProduct.image_url || '/placeholder.jpg'}
+                alt={selectedProduct.name}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+                onError={(e) => { e.currentTarget.src = '/placeholder.jpg'; }}
+              />
+            </div>
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
-                  {t('category') || 'Category *'}
-                </label>
-                <select
-                  value={form.category_id}
-                  onChange={e => setForm({ ...form, category_id: e.target.value })}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    background: 'white',
-                  }}
-                >
-                  <option value="">{t('selectCategory') || 'Select Category'}</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div>
+                <span style={{ fontSize: '0.7rem', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                  {t('category') || 'Category'}
+                </span>
+                <p style={{ fontSize: '0.9rem', fontWeight: '500', color: COLORS.textPrimary, margin: '0.1rem 0 0 0' }}>
+                  {selectedProduct.category_name}
+                </p>
               </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
-                    {t('priceRWF') || 'Price (RWF)'}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={form.price}
-                    onChange={e => setForm({ ...form, price: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.6rem 0.75rem',
-                      border: `1px solid ${COLORS.border}`,
-                      borderRadius: '8px',
-                      fontSize: '0.9rem',
-                    }}
-                  />
-                </div>
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
-                    {t('stockQuantity') || 'Stock Quantity'}
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="0"
-                    value={form.stock_quantity}
-                    onChange={e => setForm({ ...form, stock_quantity: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '0.6rem 0.75rem',
-                      border: `1px solid ${COLORS.border}`,
-                      borderRadius: '8px',
-                      fontSize: '0.9rem',
-                    }}
-                  />
+              <div>
+                <span style={{ fontSize: '0.7rem', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                  {t('price') || 'Price'}
+                </span>
+                <p style={{ fontSize: '0.9rem', fontWeight: '600', color: COLORS.primary, margin: '0.1rem 0 0 0' }}>
+                  {selectedProduct.price?.toLocaleString()} RWF
+                </p>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.7rem', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                  {t('stock') || 'Stock'}
+                </span>
+                <div style={{ marginTop: '0.1rem' }}>
+                  <StockBadge product={selectedProduct} />
                 </div>
               </div>
-
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+              <div>
+                <span style={{ fontSize: '0.7rem', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                   {t('reorderLevel') || 'Reorder Level'}
-                </label>
-                <input
-                  type="number"
-                  placeholder="20"
-                  value={form.reorder_level}
-                  onChange={e => setForm({ ...form, reorder_level: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                  }}
-                />
+                </span>
+                <p style={{ fontSize: '0.9rem', fontWeight: '500', color: COLORS.textPrimary, margin: '0.1rem 0 0 0' }}>
+                  {selectedProduct.reorder_level}
+                </p>
               </div>
+            </div>
 
+            {selectedProduct.description && (
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
+                <span style={{ fontSize: '0.7rem', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                   {t('description') || 'Description'}
-                </label>
-                <textarea
-                  placeholder={t('description') || 'Product description...'}
-                  value={form.description}
-                  onChange={e => setForm({ ...form, description: e.target.value })}
-                  rows={3}
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    resize: 'vertical',
-                  }}
-                />
+                </span>
+                <p style={{ fontSize: '0.85rem', color: COLORS.textSecondary, margin: '0.1rem 0 0 0', lineHeight: '1.6' }}>
+                  {selectedProduct.description}
+                </p>
               </div>
+            )}
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: '500', color: COLORS.textSecondary, display: 'block', marginBottom: '0.25rem' }}>
-                  {t('productImage') || 'Product Image'}
-                </label>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    style={{
-                      padding: '0.4rem',
-                      border: `1px solid ${COLORS.border}`,
-                      borderRadius: '8px',
-                      fontSize: '0.85rem',
-                      flex: 1,
-                    }}
-                  />
-                  {uploading && (
-                    <span style={{ fontSize: '0.8rem', color: COLORS.textMuted }}>
-                      <FontAwesomeIcon icon={faSpinner} spin /> {t('uploading') || 'Uploading...'}
-                    </span>
-                  )}
-                </div>
-                {form.image_url && (
-                  <div style={{ marginTop: '0.5rem' }}>
-                    <img src={form.image_url} alt="Preview" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: `1px solid ${COLORS.border}` }} />
-                  </div>
-                )}
-                <input
-                  type="text"
-                  placeholder={t('orEnterImageUrl') || 'Or enter image URL'}
-                  value={form.image_url}
-                  onChange={e => setForm({ ...form, image_url: e.target.value })}
-                  style={{
-                    width: '100%',
-                    marginTop: '0.5rem',
-                    padding: '0.6rem 0.75rem',
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                  }}
-                />
-              </div>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={form.is_active}
-                  onChange={e => setForm({ ...form, is_active: e.target.checked })}
-                  style={{ width: '16px', height: '16px', accentColor: COLORS.primary }}
-                />
-                <span style={{ fontSize: '0.85rem', color: COLORS.textSecondary }}>{t('active') || 'Active'}</span>
-              </label>
-
-              {error && (
-                <div style={{
-                  color: COLORS.danger,
-                  fontSize: '0.85rem',
-                  marginTop: '1rem',
-                  padding: '0.5rem 0.75rem',
-                  background: '#fee2e2',
-                  borderRadius: '8px',
-                }}>
-                  {error}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  style={{
-                    padding: '0.6rem 1.5rem',
-                    background: COLORS.bgGray,
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    color: COLORS.textSecondary,
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = COLORS.border;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = COLORS.bgGray;
-                  }}
-                >
-                  {t('cancel') || 'Cancel'}
-                </button>
-                <button
-                  type="submit"
-                  disabled={uploading}
-                  style={{
-                    padding: '0.6rem 1.5rem',
-                    background: COLORS.primary,
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: uploading ? 'not-allowed' : 'pointer',
-                    fontSize: '0.85rem',
-                    color: 'white',
-                    fontWeight: '600',
-                    transition: 'all 0.2s',
-                    opacity: uploading ? 0.6 : 1,
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!uploading) {
-                      e.currentTarget.style.backgroundColor = COLORS.primaryDark;
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!uploading) {
-                      e.currentTarget.style.backgroundColor = COLORS.primary;
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }
-                  }}
-                >
-                  {editingProduct ? (t('update') || 'Update') : (t('save') || 'Save')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Product Detail Drawer */}
-      {showDrawer && selectedProduct && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          width: '450px',
-          height: '100%',
-          background: 'white',
-          boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
-          zIndex: 1000,
-          padding: '1.5rem',
-          overflowY: 'auto',
-          animation: 'slideIn 0.3s ease',
-        }}>
-          <style>{`
-            @keyframes slideIn {
-              from { transform: translateX(100%); }
-              to { transform: translateX(0); }
-            }
-          `}</style>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: COLORS.textPrimary, margin: 0 }}>
-              {selectedProduct.name}
-            </h2>
-            <button
-              onClick={() => setShowDrawer(false)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                fontSize: '1.5rem',
-                cursor: 'pointer',
-                color: COLORS.textMuted,
-                transition: 'all 0.2s',
-                padding: '0.25rem',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = COLORS.textPrimary;
-                e.currentTarget.style.transform = 'rotate(90deg)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = COLORS.textMuted;
-                e.currentTarget.style.transform = 'rotate(0)';
-              }}
-            >
-              ×
-            </button>
-          </div>
-
-          <div style={{
-            width: '100%',
-            height: '220px',
-            borderRadius: '12px',
-            overflow: 'hidden',
-            marginBottom: '1rem',
-            background: COLORS.bgGray,
-          }}>
-            <img
-              src={selectedProduct.image_url || '/placeholder.jpg'}
-              alt={selectedProduct.name}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-              onError={(e) => { e.currentTarget.src = '/placeholder.jpg'; }}
-            />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-            <div>
-              <span style={{ fontSize: '0.7rem', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                {t('category') || 'Category'}
-              </span>
-              <p style={{ fontSize: '0.9rem', fontWeight: '500', color: COLORS.textPrimary, margin: '0.1rem 0 0 0' }}>
-                {selectedProduct.category_name}
-              </p>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.7rem', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                {t('price') || 'Price'}
-              </span>
-              <p style={{ fontSize: '0.9rem', fontWeight: '600', color: COLORS.primary, margin: '0.1rem 0 0 0' }}>
-                {selectedProduct.price?.toLocaleString()} RWF
-              </p>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.7rem', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                {t('stock') || 'Stock'}
-              </span>
-              <div style={{ marginTop: '0.1rem' }}>
-                <StockBadge product={selectedProduct} />
-              </div>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.7rem', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                {t('reorderLevel') || 'Reorder Level'}
-              </span>
-              <p style={{ fontSize: '0.9rem', fontWeight: '500', color: COLORS.textPrimary, margin: '0.1rem 0 0 0' }}>
-                {selectedProduct.reorder_level}
-              </p>
-            </div>
-          </div>
-
-          {selectedProduct.description && (
-            <div style={{ marginBottom: '1rem' }}>
-              <span style={{ fontSize: '0.7rem', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                {t('description') || 'Description'}
-              </span>
-              <p style={{ fontSize: '0.85rem', color: COLORS.textSecondary, margin: '0.1rem 0 0 0', lineHeight: '1.6' }}>
-                {selectedProduct.description}
-              </p>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', borderTop: `1px solid ${COLORS.border}`, paddingTop: '1rem' }}>
-            <button
-              onClick={() => {
-                setEditingProduct(selectedProduct);
-                setForm({
-                  name: selectedProduct.name,
-                  category_id: selectedProduct.category_id.toString(),
-                  price: selectedProduct.price.toString(),
-                  stock_quantity: selectedProduct.stock_quantity.toString(),
-                  description: selectedProduct.description || '',
-                  image_url: selectedProduct.image_url || '',
-                  reorder_level: selectedProduct.reorder_level.toString(),
-                  is_active: selectedProduct.is_active,
-                });
-                setShowDrawer(false);
-                setShowModal(true);
-              }}
-              style={{
-                background: COLORS.primary,
-                border: 'none',
-                padding: '0.6rem 1.5rem',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                color: 'white',
-                fontWeight: '500',
-                fontSize: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = COLORS.primaryDark;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = COLORS.primary;
-              }}
-            >
-              <FontAwesomeIcon icon={faEdit} /> {t('editProduct') || 'Edit Product'}
-            </button>
-            <button
-              onClick={() => {
-                if (confirm(t('confirmDelete') || 'Are you sure?')) {
-                  handleDelete(selectedProduct.id);
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', borderTop: `1px solid ${COLORS.border}`, paddingTop: '1rem' }}>
+              <button
+                onClick={() => {
+                  setEditingProduct(selectedProduct);
+                  setForm({
+                    name: selectedProduct.name,
+                    category_id: selectedProduct.category_id.toString(),
+                    price: selectedProduct.price.toString(),
+                    stock_quantity: selectedProduct.stock_quantity.toString(),
+                    description: selectedProduct.description || '',
+                    image_url: selectedProduct.image_url || '',
+                    reorder_level: selectedProduct.reorder_level.toString(),
+                    is_active: selectedProduct.is_active,
+                  });
                   setShowDrawer(false);
-                }
-              }}
-              style={{
-                background: 'transparent',
-                border: `1px solid ${COLORS.danger}`,
-                padding: '0.6rem 1.5rem',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                color: COLORS.danger,
-                fontWeight: '500',
-                fontSize: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#fee2e2';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              <FontAwesomeIcon icon={faTrashAlt} /> {t('delete') || 'Delete'}
-            </button>
+                  setShowModal(true);
+                }}
+                style={{
+                  flex: 1,
+                  background: COLORS.primary,
+                  border: 'none',
+                  padding: '0.6rem 1.5rem',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  color: 'white',
+                  fontWeight: '500',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = COLORS.primaryDark;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = COLORS.primary;
+                }}
+              >
+                <FontAwesomeIcon icon={faEdit} /> {t('editProduct') || 'Edit Product'}
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm(t('confirmDelete') || 'Are you sure?')) {
+                    handleDelete(selectedProduct.id);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  background: 'transparent',
+                  border: `1px solid ${COLORS.danger}`,
+                  padding: '0.6rem 1.5rem',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  color: COLORS.danger,
+                  fontWeight: '500',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#fee2e2';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <FontAwesomeIcon icon={faTrashAlt} /> {t('delete') || 'Delete'}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </DashboardLayout>
   );
 }

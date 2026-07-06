@@ -22,7 +22,7 @@ export default withAuth(async (
         COALESCE(SUM(oi.quantity), 0) as units_sold
       FROM products p
       LEFT JOIN order_items oi ON oi.product_id = p.id
-      LEFT JOIN orders o ON oi.order_id = o.id AND o.status IN ('approved', 'delivered')
+      LEFT JOIN orders o ON oi.order_id = o.id AND o.status IN ('approved', 'delivered', 'completed')
       WHERE p.deleted_at IS NULL
         AND (o.created_at > NOW() - INTERVAL '30 days' OR o.created_at IS NULL)
       GROUP BY p.id, p.name
@@ -41,7 +41,7 @@ export default withAuth(async (
         COALESCE(SUM(oi.quantity), 0) as units_sold
       FROM products p
       LEFT JOIN order_items oi ON oi.product_id = p.id
-      LEFT JOIN orders o ON oi.order_id = o.id AND o.status IN ('approved', 'delivered')
+      LEFT JOIN orders o ON oi.order_id = o.id AND o.status IN ('approved', 'delivered', 'completed')
       WHERE p.deleted_at IS NULL
         AND (o.created_at > NOW() - INTERVAL '30 days' OR o.created_at IS NULL)
       GROUP BY p.id, p.name
@@ -66,6 +66,7 @@ export default withAuth(async (
           JOIN orders o ON oi.order_id = o.id
           WHERE oi.product_id = p.id
             AND o.created_at > NOW() - INTERVAL '90 days'
+            AND o.status IN ('approved', 'delivered', 'completed')
         )
       LIMIT 10
       `
@@ -78,9 +79,9 @@ export default withAuth(async (
         COALESCE(SUM(oi.quantity), 0)::float / NULLIF(SUM(p.stock_quantity), 0) as turnover_rate
       FROM products p
       LEFT JOIN order_items oi ON oi.product_id = p.id
-      LEFT JOIN orders o ON oi.order_id = o.id AND o.status IN ('approved', 'delivered')
+      LEFT JOIN orders o ON oi.order_id = o.id AND o.status IN ('approved', 'delivered', 'completed')
       WHERE p.deleted_at IS NULL
-        AND o.created_at > NOW() - INTERVAL '30 days'
+        AND (o.created_at > NOW() - INTERVAL '30 days' OR o.created_at IS NULL)
       `
     );
 
@@ -92,7 +93,7 @@ export default withAuth(async (
         COALESCE(SUM(oi.quantity), 0) as sold_units
       FROM products p
       LEFT JOIN order_items oi ON oi.product_id = p.id
-      LEFT JOIN orders o ON oi.order_id = o.id AND o.status IN ('approved', 'delivered')
+      LEFT JOIN orders o ON oi.order_id = o.id AND o.status IN ('approved', 'delivered', 'completed')
       WHERE p.deleted_at IS NULL
         AND (o.created_at > NOW() - INTERVAL '30 days' OR o.created_at IS NULL)
       GROUP BY p.id, p.name
