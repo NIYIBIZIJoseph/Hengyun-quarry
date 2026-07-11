@@ -6,28 +6,40 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/data/translations";
 import PublicHeader from "@/components/PublicHeader";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSearchPlus } from "@fortawesome/free-solid-svg-icons";
+import { faSearchPlus, faArrowRight } from "@fortawesome/free-solid-svg-icons";
 
-// ========== CSS STYLES FOR HOVER EFFECTS ==========
+// ========== DESIGN TOKENS ==========
+const COLORS = {
+  primary: "#f59e0b",
+  primaryDark: "#d97706",
+  success: "#10b981",
+  textPrimary: "#111827",
+  textSecondary: "#4b5563",
+  textMuted: "#6b7280",
+  bgWhite: "#ffffff",
+  bgGray: "#f9fafb",
+  border: "#e5e7eb",
+  shadow: "0 1px 3px rgba(0,0,0,0.06)",
+  shadowHover: "0 8px 25px rgba(0,0,0,0.08)",
+};
+
+// ========== GLOBAL STYLES ==========
 const globalStyles = `
-  /* Image hover container */
+  /* Image hover overlay (zoom) */
   .image-hover-container {
     position: relative;
     overflow: hidden;
     cursor: pointer;
   }
-  
   .image-hover-container img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     transition: transform 0.3s ease;
   }
-  
   .image-hover-container:hover img {
     transform: scale(1.05);
   }
-  
   .image-overlay {
     position: absolute;
     top: 0;
@@ -41,11 +53,9 @@ const globalStyles = `
     opacity: 0;
     transition: opacity 0.3s ease;
   }
-  
   .image-hover-container:hover .image-overlay {
     opacity: 1;
   }
-  
   .zoom-icon {
     background-color: rgba(0, 0, 0, 0.5);
     border-radius: 50%;
@@ -54,93 +64,112 @@ const globalStyles = `
     font-size: 1.5rem;
     transition: transform 0.2s ease;
   }
-  
   .image-hover-container:hover .zoom-icon {
     transform: scale(1.1);
   }
-  
-  /* Product card styles */
-  .product-card-hover {
+
+  /* Card hover effects */
+  .card-hover {
     transition: transform 0.2s, box-shadow 0.2s;
   }
-  
-  .product-card-hover:hover {
+  .card-hover:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    box-shadow: ${COLORS.shadowHover};
   }
-  
-  /* Facility card hover */
-  .facility-card {
-    transition: transform 0.2s, box-shadow 0.2s;
+
+  /* Product grid – 2 columns on small screens */
+  .product-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+    margin-bottom: 2rem;
   }
-  
-  .facility-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  @media (max-width: 1024px) {
+    .product-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
-  
-  /* Gallery image hover */
-  .gallery-image-container {
-    position: relative;
-    overflow: hidden;
-    border-radius: 8px;
+  @media (max-width: 640px) {
+    .product-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 1rem;
+    }
+  }
+
+  /* Carousel dots */
+  .carousel-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
     cursor: pointer;
+    background: rgba(255,255,255,0.5);
+    transition: background 0.3s;
   }
-  
-  .gallery-image-container img {
-    transition: transform 0.3s ease;
+  .carousel-dot.active {
+    background: ${COLORS.primary};
   }
-  
-  .gallery-image-container:hover img {
-    transform: scale(1.05);
-  }
-  
-  .gallery-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(245, 158, 11, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-  
-  .gallery-image-container:hover .gallery-overlay {
-    opacity: 1;
-  }
-  
-  /* Larger text styles */
+
+  /* Section titles */
   .section-title {
     font-size: 2.2rem !important;
     font-weight: 700 !important;
-    margin-bottom: 1.5rem !important;
+    margin-bottom: 1rem !important;
+    color: ${COLORS.textPrimary};
+    text-align: center;
   }
-  
   .section-subtitle {
     font-size: 1.1rem !important;
-    line-height: 1.6 !important;
+    color: ${COLORS.textSecondary};
+    line-height: 1.6;
+    max-width: 700px;
+    margin: 0 auto 2rem auto !important;
+    text-align: center;
   }
-  
   .card-title {
     font-size: 1.3rem !important;
     font-weight: 700 !important;
+    margin: 1rem 0 0.5rem !important;
+    color: ${COLORS.textPrimary};
   }
-  
   .card-description {
     font-size: 0.95rem !important;
-    line-height: 1.5 !important;
+    color: ${COLORS.textSecondary};
+    line-height: 1.5;
+    padding: 0 1rem 1rem;
   }
-  
   .service-text {
     font-size: 1rem !important;
   }
+
+  .btn-primary {
+    background-color: ${COLORS.primary};
+    color: white;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-block;
+    transition: all 0.2s;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-primary:hover {
+    background-color: ${COLORS.primaryDark};
+    transform: translateY(-2px);
+    box-shadow: ${COLORS.shadowHover};
+  }
+
+  /* Hero carousel full viewport */
+  .hero-carousel {
+    height: 100vh !important;
+    min-height: 600px;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+  }
 `;
 
-// Image Modal Component
+// ========== IMAGE MODAL (matching the UI from your screenshot) ==========
 function ImageModal({ imageUrl, alt, onClose }: { imageUrl: string; alt: string; onClose: () => void }) {
   return (
     <div
@@ -150,30 +179,68 @@ function ImageModal({ imageUrl, alt, onClose }: { imageUrl: string; alt: string;
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.9)",
+        backgroundColor: "rgba(0,0,0,0.92)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 10000,
         cursor: "pointer",
+        padding: "2rem",
       }}
       onClick={onClose}
     >
-      <div style={{ maxWidth: "90vw", maxHeight: "90vh" }}>
-        <img src={imageUrl} alt={alt} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+      <div
+        style={{
+          maxWidth: "95vw",
+          maxHeight: "90vh",
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <img
+          src={imageUrl}
+          alt={alt}
+          style={{
+            maxWidth: "95vw",
+            maxHeight: "85vh",
+            objectFit: "contain",
+            borderRadius: "8px",
+            boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+          }}
+        />
+        {/* Close button – large, clean, top‑right */}
         <button
           onClick={onClose}
           style={{
             position: "absolute",
-            top: "20px",
-            right: "20px",
-            backgroundColor: "white",
+            top: "-50px",
+            right: "-10px",
+            backgroundColor: "rgba(255,255,255,0.95)",
             border: "none",
             borderRadius: "50%",
-            width: "40px",
-            height: "40px",
-            fontSize: "20px",
+            width: "48px",
+            height: "48px",
+            fontSize: "28px",
+            fontWeight: "300",
             cursor: "pointer",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+            transition: "all 0.2s",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: 1,
+            color: "#111827",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "scale(1.1)";
+            e.currentTarget.style.backgroundColor = "white";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.95)";
           }}
         >
           ×
@@ -183,15 +250,17 @@ function ImageModal({ imageUrl, alt, onClose }: { imageUrl: string; alt: string;
   );
 }
 
-// ========== COMPONENT ==========
+// ========== MAIN COMPONENT ==========
 export default function Home() {
   const { locale } = useLanguage();
   const t = translations[locale as keyof typeof translations];
 
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [facilitySlide, setFacilitySlide] = useState(0);
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [modalAlt, setModalAlt] = useState<string>("");
 
+  // Hero slides
   const slides = [
     {
       image: "/homeslide/slide1imageofcrusher.jpg",
@@ -213,13 +282,16 @@ export default function Home() {
     },
   ];
 
-  useEffect(() => {
-    if (window.location.hash) {
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      window.scrollTo(0, 0);
-    }
-  }, []);
+  const facilityImages = [
+    "/operations/facility1.jpg",
+    "/operations/facility2.jpg",
+    "/operations/facility3.jpg",
+    "/operations/facility4.jpg",
+    "/operations/facility5.jpg",
+    "/operations/facility6.jpg",
+  ];
 
+  // Auto‑slide hero
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
@@ -227,8 +299,17 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [slides.length]);
 
+  useEffect(() => {
+    if (window.location.hash) {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      window.scrollTo(0, 0);
+    }
+  }, []);
+
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  const nextFacility = () => setFacilitySlide((prev) => (prev + 1) % facilityImages.length);
+  const prevFacility = () => setFacilitySlide((prev) => (prev - 1 + facilityImages.length) % facilityImages.length);
 
   const openModal = (imageUrl: string, alt: string) => {
     setModalImage(imageUrl);
@@ -241,12 +322,10 @@ export default function Home() {
       <PublicHeader />
 
       {/* Image Modal */}
-      {modalImage && (
-        <ImageModal imageUrl={modalImage} alt={modalAlt} onClose={() => setModalImage(null)} />
-      )}
+      {modalImage && <ImageModal imageUrl={modalImage} alt={modalAlt} onClose={() => setModalImage(null)} />}
 
-      {/* ========== CAROUSEL (HERO SLIDER) ========== */}
-      <div className="carousel-container" style={{ position: "relative", width: "100%", height: "550px", overflow: "hidden" }}>
+      {/* ========== HERO CAROUSEL – FULL VIEWPORT ========== */}
+      <div className="hero-carousel">
         {slides.map((slide, index) => (
           <div
             key={index}
@@ -287,97 +366,105 @@ export default function Home() {
             </div>
           </div>
         ))}
-        <button onClick={prevSlide} style={{ position: "absolute", top: "50%", left: "10px", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", color: "white", border: "none", fontSize: "2rem", padding: "0.5rem 1rem", cursor: "pointer", zIndex: 10, borderRadius: "4px" }}>❮</button>
-        <button onClick={nextSlide} style={{ position: "absolute", top: "50%", right: "10px", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", color: "white", border: "none", fontSize: "2rem", padding: "0.5rem 1rem", cursor: "pointer", zIndex: 10, borderRadius: "4px" }}>❯</button>
-        <div style={{ position: "absolute", bottom: "15px", left: "50%", transform: "translateX(-50%)", display: "flex", gap: "12px", zIndex: 10 }}>
+        <button onClick={prevSlide} style={{ position: "absolute", top: "50%", left: "20px", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", color: "white", border: "none", fontSize: "2rem", padding: "0.5rem 1.2rem", cursor: "pointer", zIndex: 10, borderRadius: "8px" }}>❮</button>
+        <button onClick={nextSlide} style={{ position: "absolute", top: "50%", right: "20px", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", color: "white", border: "none", fontSize: "2rem", padding: "0.5rem 1.2rem", cursor: "pointer", zIndex: 10, borderRadius: "8px" }}>❯</button>
+        <div style={{ position: "absolute", bottom: "30px", left: "50%", transform: "translateX(-50%)", display: "flex", gap: "12px", zIndex: 10 }}>
           {slides.map((_, idx) => (
-            <span key={idx} onClick={() => setCurrentSlide(idx)} style={{ width: "12px", height: "12px", borderRadius: "50%", cursor: "pointer", background: idx === currentSlide ? "#f59e0b" : "rgba(255,255,255,0.5)" }} />
+            <span key={idx} onClick={() => setCurrentSlide(idx)} className={`carousel-dot ${idx === currentSlide ? "active" : ""}`} />
           ))}
         </div>
       </div>
 
-      {/* ABOUT SECTION */}
-      <section style={{ padding: "4rem 2rem", backgroundColor: "#f9fafb" }}>
+      {/* ========== ABOUT SECTION ========== */}
+      <section style={{ padding: "4rem 2rem", backgroundColor: COLORS.bgWhite }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto", display: "flex", flexWrap: "wrap", gap: "2rem", alignItems: "center" }}>
           <div style={{ flex: "1", minWidth: "250px" }}>
-            <h2 style={{ fontSize: "2.2rem", marginBottom: "1rem", color: "#1f2937", borderLeft: "4px solid #f59e0b", paddingLeft: "1rem", fontWeight: "700" }}>{t.aboutTitle}</h2>
-            <p style={{ fontSize: "1.05rem", lineHeight: "1.6", color: "#4b5563" }}>{t.aboutText}</p>
+            <h2 style={{ fontSize: "2.2rem", marginBottom: "1rem", color: COLORS.textPrimary, borderLeft: `4px solid ${COLORS.primary}`, paddingLeft: "1rem", fontWeight: "700" }}>{t.aboutTitle}</h2>
+            <p style={{ fontSize: "1.05rem", lineHeight: "1.6", color: COLORS.textSecondary }}>{t.aboutText}</p>
           </div>
           <div style={{ flex: "1", minWidth: "250px" }}>
             <video width="100%" controls style={{ borderRadius: "8px", display: "block", aspectRatio: "16/9", objectFit: "cover" }}>
               <source src="/video/video1.mp4" type="video/mp4" />
               Your browser does not support the video tag.
             </video>
-            <div style={{ textAlign: "center", marginTop: "0.5rem", fontSize: "0.9rem", color: "#6b7280" }}>{t.watchVideo}</div>
+            <div style={{ textAlign: "center", marginTop: "0.5rem", fontSize: "0.9rem", color: COLORS.textMuted }}>{t.watchVideo}</div>
           </div>
         </div>
       </section>
 
-      {/* FACILITIES SECTION WITH HOVER EFFECT */}
-      <section style={{ padding: "4rem 2rem", backgroundColor: "white" }}>
+      {/* ========== FACILITIES CARDS ========== */}
+      <section style={{ padding: "4rem 2rem", backgroundColor: COLORS.bgGray }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto", textAlign: "center" }}>
-          <h2 className="section-title" style={{ fontSize: "2.2rem", marginBottom: "2rem", fontWeight: "700" }}>{t.facilitiesTitle}</h2>
+          <h2 className="section-title">{t.facilitiesTitle}</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "2rem" }}>
-            {/* Card 1 */}
-            <div className="facility-card" style={{ backgroundColor: "#f9fafb", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
-              <div className="image-hover-container" onClick={() => openModal("https://images.pexels.com/photos/162639/digger-machine-machinery-construction-162639.jpeg", "Meticulous Planning")} style={{ height: "220px" }}>
-                <img src="https://images.pexels.com/photos/162639/digger-machine-machinery-construction-162639.jpeg" alt="Meticulous Planning" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                <div className="image-overlay">
-                  <div className="zoom-icon"><FontAwesomeIcon icon={faSearchPlus} /></div>
+            {[
+              {
+                img: "https://images.pexels.com/photos/162639/digger-machine-machinery-construction-162639.jpeg",
+                title: t.meticulousPlanningTitle,
+                desc: t.meticulousPlanningDesc,
+              },
+              {
+                img: "https://images.pexels.com/photos/31925745/pexels-photo-31925745.jpeg",
+                title: t.perfectExecutionTitle,
+                desc: t.perfectExecutionDesc,
+              },
+              {
+                img: "https://images.pexels.com/photos/210182/pexels-photo-210182.jpeg",
+                title: t.completionOnTimeTitle,
+                desc: t.completionOnTimeDesc,
+              },
+            ].map((card, idx) => (
+              <div key={idx} className="card-hover" style={{ backgroundColor: COLORS.bgWhite, borderRadius: "12px", overflow: "hidden", boxShadow: COLORS.shadow }}>
+                <div className="image-hover-container" onClick={() => openModal(card.img, card.title)} style={{ height: "220px" }}>
+                  <img src={card.img} alt={card.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <div className="image-overlay">
+                    <div className="zoom-icon"><FontAwesomeIcon icon={faSearchPlus} /></div>
+                  </div>
                 </div>
-              </div>
-              <h3 className="card-title" style={{ fontSize: "1.3rem", margin: "1rem 0 0.5rem", fontWeight: "700" }}>{t.meticulousPlanningTitle}</h3>
-              <p className="card-description" style={{ fontSize: "0.95rem", color: "#6b7280", padding: "0 1rem 1.5rem" }}>{t.meticulousPlanningDesc}</p>
-            </div>
-            {/* Card 2 */}
-            <div className="facility-card" style={{ backgroundColor: "#f9fafb", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
-              <div className="image-hover-container" onClick={() => openModal("https://images.pexels.com/photos/31925745/pexels-photo-31925745.jpeg", "Perfect Execution")} style={{ height: "220px" }}>
-                <img src="https://images.pexels.com/photos/31925745/pexels-photo-31925745.jpeg" alt="Perfect Execution" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                <div className="image-overlay">
-                  <div className="zoom-icon"><FontAwesomeIcon icon={faSearchPlus} /></div>
-                </div>
-              </div>
-              <h3 className="card-title" style={{ fontSize: "1.3rem", margin: "1rem 0 0.5rem", fontWeight: "700" }}>{t.perfectExecutionTitle}</h3>
-              <p className="card-description" style={{ fontSize: "0.95rem", color: "#6b7280", padding: "0 1rem 1.5rem" }}>{t.perfectExecutionDesc}</p>
-            </div>
-            {/* Card 3 */}
-            <div className="facility-card" style={{ backgroundColor: "#f9fafb", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
-              <div className="image-hover-container" onClick={() => openModal("https://images.pexels.com/photos/210182/pexels-photo-210182.jpeg", "Completion On Time")} style={{ height: "220px" }}>
-                <img src="https://images.pexels.com/photos/210182/pexels-photo-210182.jpeg" alt="Completion On Time" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                <div className="image-overlay">
-                  <div className="zoom-icon"><FontAwesomeIcon icon={faSearchPlus} /></div>
-                </div>
-              </div>
-              <h3 className="card-title" style={{ fontSize: "1.3rem", margin: "1rem 0 0.5rem", fontWeight: "700" }}>{t.completionOnTimeTitle}</h3>
-              <p className="card-description" style={{ fontSize: "0.95rem", color: "#6b7280", padding: "0 1rem 1.5rem" }}>{t.completionOnTimeDesc}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* OPERATION FACILITIES SECTION WITH HOVER EFFECT */}
-      <section style={{ padding: "4rem 2rem", backgroundColor: "#f9fafb" }}>
-        <div style={{ maxWidth: "1200px", margin: "0 auto", textAlign: "center" }}>
-          <h2 className="section-title" style={{ fontSize: "2.2rem", marginBottom: "2rem", fontWeight: "700" }}>{t.operationFacilitiesTitle}</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem" }}>
-            {["/operations/facility1.jpg", "/operations/facility2.jpg", "/operations/facility3.jpg", "/operations/facility4.jpg", "/operations/facility5.jpg", "/operations/facility6.jpg"].map((img, idx) => (
-              <div key={idx} className="gallery-image-container" onClick={() => openModal(img, `Facility ${idx + 1}`)}>
-                <img src={img} alt={`Facility ${idx + 1}`} style={{ width: "100%", height: "220px", objectFit: "cover", borderRadius: "8px" }} />
-                <div className="gallery-overlay">
-                  <div className="zoom-icon"><FontAwesomeIcon icon={faSearchPlus} /></div>
-                </div>
+                <h3 className="card-title">{card.title}</h3>
+                <p className="card-description">{card.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* PRODUCTS SECTION WITH HOVER EFFECT */}
-      <section style={{ padding: "4rem 2rem", backgroundColor: "white" }}>
+      {/* ========== OPERATION FACILITIES CAROUSEL ========== */}
+      <section style={{ padding: "4rem 2rem", backgroundColor: COLORS.bgWhite }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto", textAlign: "center" }}>
-          <h2 className="section-title" style={{ fontSize: "2.2rem", marginBottom: "1rem", fontWeight: "700" }}>{t.productsTitle}</h2>
-          <p className="section-subtitle" style={{ fontSize: "1.05rem", maxWidth: "700px", margin: "0 auto 2rem auto", color: "#6b7280" }}>{t.productsDesc}</p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "2rem", marginBottom: "2rem" }}>
+          <h2 className="section-title">{t.operationFacilitiesTitle}</h2>
+          <div style={{ position: "relative", width: "100%", maxWidth: "900px", margin: "0 auto", overflow: "hidden" }}>
+            <div
+              className="image-hover-container"
+              onClick={() => openModal(facilityImages[facilitySlide], `Facility ${facilitySlide + 1}`)}
+              style={{ width: "100%", height: "400px", borderRadius: "8px", overflow: "hidden" }}
+            >
+              <img
+                src={facilityImages[facilitySlide]}
+                alt={`Facility ${facilitySlide + 1}`}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+              <div className="image-overlay">
+                <div className="zoom-icon"><FontAwesomeIcon icon={faSearchPlus} /></div>
+              </div>
+            </div>
+            <button onClick={prevFacility} style={{ position: "absolute", top: "50%", left: "10px", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", color: "white", border: "none", fontSize: "2rem", padding: "0.5rem 1rem", cursor: "pointer", borderRadius: "4px", zIndex: 5 }}>❮</button>
+            <button onClick={nextFacility} style={{ position: "absolute", top: "50%", right: "10px", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", color: "white", border: "none", fontSize: "2rem", padding: "0.5rem 1rem", cursor: "pointer", borderRadius: "4px", zIndex: 5 }}>❯</button>
+            <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginTop: "1rem" }}>
+              {facilityImages.map((_, idx) => (
+                <span key={idx} onClick={() => setFacilitySlide(idx)} className={`carousel-dot ${idx === facilitySlide ? "active" : ""}`} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ========== PRODUCTS GRID ========== */}
+      <section style={{ padding: "4rem 2rem", backgroundColor: COLORS.bgGray }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto", textAlign: "center" }}>
+          <h2 className="section-title">{t.productsTitle}</h2>
+          <p className="section-subtitle">{t.productsDesc}</p>
+          <div className="product-grid">
             {[
               { img: "/products/product1.jpg", title: t.aggregatesTitle, desc: t.aggregatesDesc },
               { img: "/products/product2.jpg", title: t.sandTitle, desc: t.sandDesc },
@@ -388,30 +475,33 @@ export default function Home() {
               { img: "/products/product7.jpg", title: t.roadBaseTitle, desc: t.roadBaseDesc },
               { img: "/products/product8.jpg", title: t.fillMaterialTitle, desc: t.fillMaterialDesc },
             ].map((product, idx) => (
-              <div key={idx} className="product-card-hover" style={{ backgroundColor: "#f9fafb", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+              <div key={idx} className="card-hover" style={{ backgroundColor: COLORS.bgWhite, borderRadius: "12px", overflow: "hidden", boxShadow: COLORS.shadow }}>
                 <div className="image-hover-container" onClick={() => openModal(product.img, product.title)} style={{ height: "220px" }}>
                   <img src={product.img} alt={product.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   <div className="image-overlay">
                     <div className="zoom-icon"><FontAwesomeIcon icon={faSearchPlus} /></div>
                   </div>
                 </div>
-                <h3 className="card-title" style={{ fontSize: "1.25rem", margin: "1rem 0 0.5rem", fontWeight: "700" }}>{product.title}</h3>
-                <p className="card-description" style={{ fontSize: "0.9rem", color: "#6b7280", padding: "0 1rem 1rem" }}>{product.desc}</p>
+                <h3 className="card-title">{product.title}</h3>
+                <p className="card-description">{product.desc}</p>
               </div>
             ))}
           </div>
-          <Link href="/products" style={{ backgroundColor: "#f59e0b", color: "#1f2937", padding: "0.75rem 2rem", borderRadius: "8px", textDecoration: "none", fontWeight: "bold", display: "inline-block" }}>{t.seeAllProducts}</Link>
+          <Link href="/products" className="btn-primary">{t.seeAllProducts}</Link>
         </div>
       </section>
 
-      {/* SERVICES SECTION */}
-      <section id="services-section" style={{ padding: "4rem 2rem", backgroundColor: "#4d5a67" }}>
+      {/* ========== THREE‑COLUMN FOOTER ========== */}
+      <section id="services-section" style={{ padding: "4rem 2rem", backgroundColor: "#2d3748" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "2rem", alignItems: "start" }}>
-          <div>
-            <h3 style={{ fontSize: "1.6rem", marginBottom: "1rem", color: "#1f2937", borderLeft: "4px solid #f59e0b", paddingLeft: "0.75rem", fontWeight: "700" }}>{t.servicesTitle}</h3>
+          <div style={{ textAlign: "left" }}>
+            <h3 style={{ fontSize: "1.4rem", marginBottom: "1rem", color: "white", borderLeft: `4px solid ${COLORS.primary}`, paddingLeft: "0.75rem", fontWeight: "700" }}>{t.servicesTitle}</h3>
             <ul style={{ listStyle: "none", paddingLeft: 0, margin: 0 }}>
               {(t.servicesList || []).map((service, idx) => (
-                <li key={idx} className="service-text" style={{ marginBottom: "0.5rem", fontSize: "1rem", color: "#f9fafd" }}>{service}</li>
+                <li key={idx} className="service-text" style={{ marginBottom: "0.5rem", fontSize: "0.95rem", color: "#e2e8f0" }}>
+                  <span style={{ color: COLORS.primary, marginRight: "0.5rem" }}>▸</span>
+                  {service}
+                </li>
               ))}
             </ul>
           </div>
@@ -424,12 +514,12 @@ export default function Home() {
                 <text x="52" y="25" fontFamily="Arial, sans-serif" fontSize="12" fill="currentColor" fontWeight="bold">HENG YUN</text>
               </svg>
             </div>
-            <h4 style={{ fontSize: "1.3rem", marginBottom: "0.75rem", color: "#f6f7f9", fontWeight: "600" }}>{t.environmentalTitle}</h4>
-            <p style={{ fontSize: "1rem", lineHeight: "1.5", color: "#f7f8f9" }}>{t.environmentalText}</p>
+            <h4 style={{ fontSize: "1.2rem", marginBottom: "0.75rem", color: "white", fontWeight: "600" }}>{t.environmentalTitle}</h4>
+            <p style={{ fontSize: "0.95rem", lineHeight: "1.6", color: "#cbd5e1" }}>{t.environmentalText}</p>
           </div>
-          <div>
-            <h3 style={{ fontSize: "1.6rem", marginBottom: "1rem", color: "#1f2937", borderLeft: "4px solid #f59e0b", paddingLeft: "0.75rem", fontWeight: "700" }}>{t.contactUsHeading}</h3>
-            <address style={{ fontStyle: "normal", color: "#fbfcfe", fontSize: "1rem", lineHeight: "1.6" }}>
+          <div style={{ textAlign: "left" }}>
+            <h3 style={{ fontSize: "1.4rem", marginBottom: "1rem", color: "white", borderLeft: `4px solid ${COLORS.primary}`, paddingLeft: "0.75rem", fontWeight: "700" }}>{t.contactUsHeading}</h3>
+            <address style={{ fontStyle: "normal", color: "#e2e8f0", fontSize: "0.95rem", lineHeight: "1.8" }}>
               <div>{(t.address || "").split('\n').map((line, i) => <span key={i}>{line}<br /></span>)}</div>
               <p><strong>{t.phoneLabel}:</strong> 0786592766</p>
               <p><strong>{t.emailLabel}:</strong> hengyunquarry@gmail.com</p>
@@ -438,9 +528,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer style={{ backgroundColor: "#1f2937", color: "#9ca3af", textAlign: "center", padding: "2rem", borderTop: "1px solid #374151" }}>
-        <div style={{ maxWidth: "1200px", margin: "0 auto", fontSize: "0.9rem" }}>
+      {/* ========== FINAL FOOTER ========== */}
+      <footer style={{ backgroundColor: "#1a202c", color: "#a0aec0", textAlign: "center", padding: "1.5rem", borderTop: "1px solid #2d3748" }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto", fontSize: "0.85rem" }}>
           <p>{t.footerText}</p>
         </div>
       </footer>

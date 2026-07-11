@@ -6,6 +6,52 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/data/translations";
 import PublicHeader from "@/components/PublicHeader";
 
+// ========== DESIGN TOKENS (same as other pages) ==========
+const COLORS = {
+  primary: "#f59e0b",
+  primaryDark: "#d97706",
+  textPrimary: "#111827",
+  textSecondary: "#4b5563",
+  textMuted: "#6b7280",
+  bgWhite: "#ffffff",
+  bgGray: "#f9fafb",
+  shadow: "0 1px 3px rgba(0,0,0,0.06)",
+  shadowHover: "0 8px 25px rgba(0,0,0,0.08)",
+};
+
+// ========== GLOBAL STYLES ==========
+const globalStyles = `
+  .section-title {
+    font-size: 2.2rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 1rem !important;
+    color: ${COLORS.textPrimary};
+    text-align: center;
+  }
+
+  .service-text {
+    font-size: 1rem !important;
+  }
+
+  .btn-primary {
+    background-color: ${COLORS.primary};
+    color: white;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    display: inline-block;
+    transition: all 0.2s;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-primary:hover {
+    background-color: ${COLORS.primaryDark};
+    transform: translateY(-2px);
+    box-shadow: ${COLORS.shadowHover};
+  }
+`;
+
 export default function ContactPage() {
   const { locale, setLocale } = useLanguage();
   const t = translations[locale as keyof typeof translations];
@@ -60,45 +106,91 @@ export default function ContactPage() {
 
   return (
     <div>
+      <style>{globalStyles}</style>
       <PublicHeader />
 
-      {/* Hero */}
-      <div style={heroSectionStyle}>
-        <div style={heroOverlayStyle}>
-          <h1 style={heroHeadingStyle}>{t.contactHeroTitle}</h1>
-          <p style={heroSubStyle}>{t.contactHeroDesc}</p>
+      {/* ========== HERO – matches Products/About ========== */}
+      <div style={{
+        height: "450px",
+        backgroundImage: "url('https://images.pexels.com/photos/3183197/pexels-photo-3183197.jpeg?auto=compress&cs=tinysrgb&w=1920&h=400&fit=crop')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        position: "relative",
+      }}>
+        <div style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          backgroundColor: "rgba(0,0,0,0.55)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          padding: "2rem",
+        }}>
+          <h1 style={{
+            color: "white",
+            fontSize: "3.5rem",
+            fontWeight: "700",
+            marginBottom: "0.5rem",
+            textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+          }}>
+            {t.contactHeroTitle}
+          </h1>
+          <p style={{
+            color: "white",
+            fontSize: "1.2rem",
+            maxWidth: "700px",
+            opacity: 0.9,
+          }}>
+            {t.contactHeroDesc}
+          </p>
         </div>
       </div>
 
-      {/* Contact Info + Form */}
-      <section style={contactSectionStyle}>
-        <div style={containerStyle}>
-          <div style={twoColumnStyle}>
+      {/* ========== CONTACT INFO + FORM ========== */}
+      <section style={{ padding: "4rem 2rem", backgroundColor: COLORS.bgWhite }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 1rem" }}>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+            gap: "3rem",
+          }}>
             {/* Left column – Info & Map */}
-            <div style={contactInfoStyle}>
-              <h2 style={infoTitleStyle}>{t.contactInfoTitle}</h2>
-              <div style={infoItemStyle}>
-                <span style={infoIconStyle}>📍</span>
+            <div style={{
+              backgroundColor: COLORS.bgGray,
+              padding: "2rem",
+              borderRadius: "12px",
+              boxShadow: COLORS.shadow,
+            }}>
+              <h2 style={{ fontSize: "1.8rem", marginBottom: "1.5rem", color: COLORS.textPrimary }}>
+                {t.contactInfoTitle}
+              </h2>
+              <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", alignItems: "flex-start" }}>
+                <span style={{ fontSize: "1.5rem" }}>📍</span>
                 <div>
                   <strong>{t.officeAddress}</strong><br />
                   {t.address.split('\n').map((line, i) => <span key={i}>{line}<br /></span>)}
                 </div>
               </div>
-              <div style={infoItemStyle}>
-                <span style={infoIconStyle}>📞</span>
+              <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", alignItems: "flex-start" }}>
+                <span style={{ fontSize: "1.5rem" }}>📞</span>
                 <div>
                   <strong>{t.phoneLabel}</strong><br />
                   {t.phone}
                 </div>
               </div>
-              <div style={infoItemStyle}>
-                <span style={infoIconStyle}>✉️</span>
+              <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", alignItems: "flex-start" }}>
+                <span style={{ fontSize: "1.5rem" }}>✉️</span>
                 <div>
                   <strong>{t.emailLabel}</strong><br />
                   {t.email}
                 </div>
               </div>
-              <div style={mapContainerStyle}>
+              <div style={{ marginTop: "1.5rem", borderRadius: "8px", overflow: "hidden" }}>
                 <iframe
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d63741.28063066605!2d30.033333!3d-1.933333!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x19dca6f0b6f2d2f7%3A0x2b8f7c8b8b8b8b8b!2sNyacyonga%2C%20Rwanda!5e0!3m2!1sen!2srw!4v1712345678901!5m2!1sen!2srw"
                   width="100%"
@@ -112,12 +204,27 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {/* Right column – Contact Form + Link to FAQ */}
-            <div style={formContainerStyle}>
-              <h2 style={formTitleStyle}>{t.contactFormTitle}</h2>
-              {submitted && <div style={successMessageStyle}>✓ {t.contactFormSuccess}</div>}
-              {error && <div style={errorMessageStyle}>⚠️ {error}</div>}
-              <form onSubmit={handleSubmit} style={formStyle}>
+            {/* Right column – Contact Form + FAQ link */}
+            <div style={{
+              backgroundColor: COLORS.bgGray,
+              padding: "2rem",
+              borderRadius: "12px",
+              boxShadow: COLORS.shadow,
+            }}>
+              <h2 style={{ fontSize: "1.8rem", marginBottom: "1.5rem", color: COLORS.textPrimary }}>
+                {t.contactFormTitle}
+              </h2>
+              {submitted && (
+                <div style={{ backgroundColor: "#10b981", color: "white", padding: "0.75rem", borderRadius: "8px", marginBottom: "1rem", textAlign: "center" }}>
+                  ✓ {t.contactFormSuccess}
+                </div>
+              )}
+              {error && (
+                <div style={{ backgroundColor: "#ef4444", color: "white", padding: "0.75rem", borderRadius: "8px", marginBottom: "1rem", textAlign: "center" }}>
+                  ⚠️ {error}
+                </div>
+              )}
+              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                 <input
                   type="text"
                   name="user_name"
@@ -150,16 +257,32 @@ export default function ContactPage() {
                   onChange={handleChange}
                   required
                   rows={5}
-                  style={textareaStyle}
+                  style={{ ...inputStyle, fontFamily: "inherit" }}
                 />
-                <button type="submit" disabled={sending} style={submitButtonStyle}>
+                <button
+                  type="submit"
+                  disabled={sending}
+                  className="btn-primary"
+                  style={{ padding: "0.75rem", fontSize: "1rem", width: "100%" }}
+                >
                   {sending ? "Sending..." : t.sendButton}
                 </button>
               </form>
 
-              {/* Link to FAQ page */}
-              <div style={faqLinkWrapperStyle}>
-                <Link href="/faq" style={faqLinkStyle}>
+              {/* FAQ link */}
+              <div style={{
+                marginTop: "2rem",
+                textAlign: "center",
+                borderTop: "1px solid #e5e7eb",
+                paddingTop: "1.5rem",
+              }}>
+                <Link href="/faq" style={{
+                  color: COLORS.primary,
+                  fontWeight: "500",
+                  fontSize: "0.9rem",
+                  textDecoration: "none",
+                  transition: "color 0.2s",
+                }}>
                   📖 {t.faqTitle || "Frequently Asked Questions"} →
                 </Link>
               </div>
@@ -168,32 +291,68 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* Three Column Section (Services | Environmental | Contact) */}
-      <section style={threeColumnSectionStyle}>
-        <div style={threeColumnContainerStyle}>
-          <div style={servicesColumnStyle}>
-            <h3 style={columnHeadingStyle}>{t.servicesTitle}</h3>
-            <ul style={servicesListSingleStyle}>
+      {/* ========== THREE‑COLUMN FOOTER (same as other pages) ========== */}
+      <section style={{ padding: "4rem 2rem", backgroundColor: "#2d3748" }}>
+        <div style={{
+          maxWidth: "1200px",
+          margin: "0 auto",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: "2rem",
+          alignItems: "start",
+        }}>
+          <div style={{ textAlign: "left" }}>
+            <h3 style={{
+              fontSize: "1.4rem",
+              marginBottom: "1rem",
+              color: "white",
+              borderLeft: `4px solid ${COLORS.primary}`,
+              paddingLeft: "0.75rem",
+              fontWeight: "700",
+            }}>
+              {t.servicesTitle}
+            </h3>
+            <ul style={{ listStyle: "none", paddingLeft: 0, margin: 0 }}>
               {(t.servicesList || []).map((service, idx) => (
-                <li key={idx} style={serviceItemStyle}>{service}</li>
+                <li key={idx} className="service-text" style={{
+                  marginBottom: "0.5rem",
+                  fontSize: "0.95rem",
+                  color: "#e2e8f0",
+                }}>
+                  <span style={{ color: COLORS.primary, marginRight: "0.5rem" }}>▸</span>
+                  {service}
+                </li>
               ))}
             </ul>
           </div>
-          <div style={environmentalColumnStyle}>
-            <div style={logoWrapperStyle}>
-              <svg width="120" height="34" viewBox="0 0 160 45" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <div style={{ textAlign: "center" }}>
+            <div style={{ marginBottom: "1rem", display: "flex", justifyContent: "center" }}>
+              <svg width="120" height="34" viewBox="0 0 160 45" fill="none">
                 <path d="M8 36 L25 14 L38 27 L52 9 L70 31 L84 18 L102 36" stroke="#f59e0b" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M102 36 L115 22 L128 34 L142 18 L155 36" stroke="#f59e0b" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
                 <text x="24" y="20" fontFamily="serif" fontSize="16" fill="#f59e0b" fontWeight="bold">恒</text>
                 <text x="52" y="25" fontFamily="Arial, sans-serif" fontSize="12" fill="currentColor" fontWeight="bold">HENG YUN</text>
               </svg>
             </div>
-            <h4 style={environmentalHeadingStyle}>{t.environmentalTitle}</h4>
-            <p style={environmentalTextStyle}>{t.environmentalText}</p>
+            <h4 style={{ fontSize: "1.2rem", marginBottom: "0.75rem", color: "white", fontWeight: "600" }}>
+              {t.environmentalTitle}
+            </h4>
+            <p style={{ fontSize: "0.95rem", lineHeight: "1.6", color: "#cbd5e1" }}>
+              {t.environmentalText}
+            </p>
           </div>
-          <div style={contactColumnStyle}>
-            <h3 style={columnHeadingStyle}>{t.contactUsHeading}</h3>
-            <address style={contactAddressStyle}>
+          <div style={{ textAlign: "left" }}>
+            <h3 style={{
+              fontSize: "1.4rem",
+              marginBottom: "1rem",
+              color: "white",
+              borderLeft: `4px solid ${COLORS.primary}`,
+              paddingLeft: "0.75rem",
+              fontWeight: "700",
+            }}>
+              {t.contactUsHeading}
+            </h3>
+            <address style={{ fontStyle: "normal", color: "#e2e8f0", fontSize: "0.95rem", lineHeight: "1.8" }}>
               <div>{(t.address || "").split('\n').map((line, i) => <span key={i}>{line}<br /></span>)}</div>
               <p><strong>{t.phoneLabel}:</strong> 0786592766</p>
               <p><strong>{t.emailLabel}:</strong> hengyunquarry@gmail.com</p>
@@ -202,8 +361,15 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <footer style={footerStyle}>
-        <div style={footerContainerStyle}>
+      {/* ========== FINAL FOOTER ========== */}
+      <footer style={{
+        backgroundColor: "#1a202c",
+        color: "#a0aec0",
+        textAlign: "center",
+        padding: "1.5rem",
+        borderTop: "1px solid #2d3748",
+      }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto", fontSize: "0.85rem" }}>
           <p>{t.footerText}</p>
         </div>
       </footer>
@@ -211,212 +377,14 @@ export default function ContactPage() {
   );
 }
 
-// ========== STYLE CONSTANTS ==========
-const heroSectionStyle: React.CSSProperties = {
-  height: "400px",
-  backgroundImage: "url('https://images.pexels.com/photos/3183197/pexels-photo-3183197.jpeg?auto=compress&cs=tinysrgb&w=1920&h=400&fit=crop')",
-  backgroundSize: "cover",
-  backgroundPosition: "center",
-  position: "relative",
-};
-const heroOverlayStyle: React.CSSProperties = {
-  position: "absolute",
-  top: 0,
-  left: 0,
-  width: "100%",
-  height: "100%",
-  backgroundColor: "rgba(0,0,0,0.5)",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  textAlign: "center",
-};
-const heroHeadingStyle: React.CSSProperties = {
-  color: "white",
-  fontSize: "3rem",
-  fontWeight: "700",
-  marginBottom: "1rem",
-};
-const heroSubStyle: React.CSSProperties = {
-  color: "white",
-  fontSize: "1.2rem",
-  maxWidth: "700px",
-};
-const contactSectionStyle: React.CSSProperties = {
-  padding: "4rem 2rem",
-  backgroundColor: "white",
-};
-const containerStyle: React.CSSProperties = {
-  maxWidth: "1200px",
-  margin: "0 auto",
-  padding: "0 1rem",
-};
-const twoColumnStyle: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-  gap: "3rem",
-};
-const contactInfoStyle: React.CSSProperties = {
-  backgroundColor: "#f9fafb",
-  padding: "2rem",
-  borderRadius: "12px",
-  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-};
-const infoTitleStyle: React.CSSProperties = {
-  fontSize: "1.8rem",
-  marginBottom: "1.5rem",
-  color: "#1f2937",
-};
-const infoItemStyle: React.CSSProperties = {
-  display: "flex",
-  gap: "1rem",
-  marginBottom: "1.5rem",
-  alignItems: "flex-start",
-};
-const infoIconStyle: React.CSSProperties = {
-  fontSize: "1.5rem",
-};
-const mapContainerStyle: React.CSSProperties = {
-  marginTop: "1.5rem",
-  borderRadius: "8px",
-  overflow: "hidden",
-};
-const formContainerStyle: React.CSSProperties = {
-  backgroundColor: "#f9fafb",
-  padding: "2rem",
-  borderRadius: "12px",
-  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-};
-const formTitleStyle: React.CSSProperties = {
-  fontSize: "1.8rem",
-  marginBottom: "1.5rem",
-  color: "#1f2937",
-};
-const formStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "1rem",
-};
+// ========== SHARED INPUT STYLES ==========
 const inputStyle: React.CSSProperties = {
   padding: "0.75rem",
   borderRadius: "8px",
   border: "1px solid #d1d5db",
   fontSize: "1rem",
   outline: "none",
-};
-const textareaStyle: React.CSSProperties = {
-  padding: "0.75rem",
-  borderRadius: "8px",
-  border: "1px solid #d1d5db",
-  fontSize: "1rem",
-  fontFamily: "inherit",
-  outline: "none",
-};
-const submitButtonStyle: React.CSSProperties = {
-  backgroundColor: "#f59e0b",
-  color: "#1f2937",
-  padding: "0.75rem",
-  borderRadius: "8px",
-  border: "none",
-  fontSize: "1rem",
-  fontWeight: "bold",
-  cursor: "pointer",
-  transition: "background 0.2s",
-};
-const successMessageStyle: React.CSSProperties = {
-  backgroundColor: "#10b981",
-  color: "white",
-  padding: "0.75rem",
-  borderRadius: "8px",
-  marginBottom: "1rem",
-  textAlign: "center",
-};
-const errorMessageStyle: React.CSSProperties = {
-  backgroundColor: "#ef4444",
-  color: "white",
-  padding: "0.75rem",
-  borderRadius: "8px",
-  marginBottom: "1rem",
-  textAlign: "center",
-};
-const faqLinkWrapperStyle: React.CSSProperties = {
-  marginTop: "2rem",
-  textAlign: "center",
-  borderTop: "1px solid #e5e7eb",
-  paddingTop: "1.5rem",
-};
-const faqLinkStyle: React.CSSProperties = {
-  color: "#f59e0b",
-  fontWeight: "500",
-  fontSize: "0.9rem",
-  textDecoration: "none",
-};
-const threeColumnSectionStyle: React.CSSProperties = {
-  padding: "4rem 2rem",
-  backgroundColor: "#4d5a67",
-};
-const threeColumnContainerStyle: React.CSSProperties = {
-  maxWidth: "1200px",
-  margin: "0 auto",
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-  gap: "2rem",
-  alignItems: "start",
-};
-const servicesColumnStyle: React.CSSProperties = { textAlign: "left" };
-const servicesListSingleStyle: React.CSSProperties = {
-  listStyle: "none",
-  paddingLeft: 0,
-  margin: 0,
-};
-const serviceItemStyle: React.CSSProperties = {
-  marginBottom: "0.5rem",
-  fontSize: "0.9rem",
-  color: "#f9fafd",
-};
-const columnHeadingStyle: React.CSSProperties = {
-  fontSize: "1.5rem",
-  marginBottom: "1rem",
-  color: "#1f2937",
-  borderLeft: "4px solid #f59e0b",
-  paddingLeft: "0.75rem",
-};
-const environmentalColumnStyle: React.CSSProperties = { textAlign: "center" };
-const logoWrapperStyle: React.CSSProperties = {
-  marginBottom: "1rem",
-  display: "flex",
-  justifyContent: "center",
-};
-const environmentalHeadingStyle: React.CSSProperties = {
-  fontSize: "1.2rem",
-  marginBottom: "0.75rem",
-  color: "#f6f7f9",
-  fontWeight: "600",
-};
-const environmentalTextStyle: React.CSSProperties = {
-  fontSize: "0.9rem",
-  lineHeight: "1.5",
-  color: "#f7f8f9",
-};
-const contactColumnStyle: React.CSSProperties = {
-  textAlign: "left",
-  marginLeft: "40%",
-};
-const contactAddressStyle: React.CSSProperties = {
-  fontStyle: "normal",
-  color: "#fbfcfe",
-  fontSize: "0.9rem",
-  lineHeight: "1.5",
-};
-const footerStyle: React.CSSProperties = {
-  backgroundColor: "#1f2937",
-  color: "#9ca3af",
-  textAlign: "center",
-  padding: "2rem",
-  borderTop: "1px solid #374151",
-};
-const footerContainerStyle: React.CSSProperties = {
-  maxWidth: "1200px",
-  margin: "0 auto",
+  width: "100%",
+  boxSizing: "border-box",
+  backgroundColor: "white",
 };

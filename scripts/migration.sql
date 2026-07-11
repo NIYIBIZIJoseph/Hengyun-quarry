@@ -177,56 +177,7 @@ CREATE INDEX IF NOT EXISTS idx_products_branch ON products(branch_id);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 
 -- ============================================================================
--- 4. ORDER TABLES
--- ============================================================================
-
--- 4.1 orders
-CREATE TABLE IF NOT EXISTS orders (
-  id SERIAL PRIMARY KEY,
-  order_number VARCHAR(50),
-  client_name VARCHAR(100) NOT NULL,
-  client_phone VARCHAR(20) NOT NULL,
-  status VARCHAR(20) DEFAULT 'pending',
-  payment_status VARCHAR(20) DEFAULT 'unpaid',
-  total_amount DECIMAL(12,2) DEFAULT 0,
-  delivery_location TEXT,
-  delivery_date DATE,
-  note TEXT,
-  notes TEXT,
-  admin_notes TEXT,
-  assigned_worker_id INT,
-  bargaining_requested BOOLEAN DEFAULT FALSE,
-  branch_id INT,
-  created_by INT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  approved_at TIMESTAMPTZ,
-  delivered_at TIMESTAMPTZ,
-  deleted_at TIMESTAMPTZ,
-  deleted_by INT,
-  FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL,
-  FOREIGN KEY (assigned_worker_id) REFERENCES workers(id) ON DELETE SET NULL,
-  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-);
-CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-CREATE INDEX IF NOT EXISTS idx_orders_branch ON orders(branch_id);
-CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at);
-
--- 4.2 order_items
-CREATE TABLE IF NOT EXISTS order_items (
-  id SERIAL PRIMARY KEY,
-  order_id INT NOT NULL,
-  product_id INT NOT NULL,
-  quantity DECIMAL(12,2) NOT NULL,
-  unit_price DECIMAL(12,2) NOT NULL,
-  subtotal DECIMAL(12,2) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-);
-
--- ============================================================================
--- 5. HR TABLES
+-- 5. HR TABLES (MOVED BEFORE ORDER TABLES)
 -- ============================================================================
 
 -- 5.1 departments
@@ -362,6 +313,55 @@ CREATE TABLE IF NOT EXISTS worker_documents (
   file_url TEXT NOT NULL,
   uploaded_at TIMESTAMPTZ DEFAULT NOW(),
   FOREIGN KEY (worker_id) REFERENCES workers(id) ON DELETE CASCADE
+);
+
+-- ============================================================================
+-- 4. ORDER TABLES (NOW AFTER HR TABLES)
+-- ============================================================================
+
+-- 4.1 orders
+CREATE TABLE IF NOT EXISTS orders (
+  id SERIAL PRIMARY KEY,
+  order_number VARCHAR(50),
+  client_name VARCHAR(100) NOT NULL,
+  client_phone VARCHAR(20) NOT NULL,
+  status VARCHAR(20) DEFAULT 'pending',
+  payment_status VARCHAR(20) DEFAULT 'unpaid',
+  total_amount DECIMAL(12,2) DEFAULT 0,
+  delivery_location TEXT,
+  delivery_date DATE,
+  note TEXT,
+  notes TEXT,
+  admin_notes TEXT,
+  assigned_worker_id INT,
+  bargaining_requested BOOLEAN DEFAULT FALSE,
+  branch_id INT,
+  created_by INT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  approved_at TIMESTAMPTZ,
+  delivered_at TIMESTAMPTZ,
+  deleted_at TIMESTAMPTZ,
+  deleted_by INT,
+  FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL,
+  FOREIGN KEY (assigned_worker_id) REFERENCES workers(id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_branch ON orders(branch_id);
+CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at);
+
+-- 4.2 order_items
+CREATE TABLE IF NOT EXISTS order_items (
+  id SERIAL PRIMARY KEY,
+  order_id INT NOT NULL,
+  product_id INT NOT NULL,
+  quantity DECIMAL(12,2) NOT NULL,
+  unit_price DECIMAL(12,2) NOT NULL,
+  subtotal DECIMAL(12,2) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 );
 
 -- ============================================================================

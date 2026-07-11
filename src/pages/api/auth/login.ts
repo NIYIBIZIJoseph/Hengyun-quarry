@@ -2,8 +2,17 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import pool from '@/lib/db';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { createNotificationForUser } from '@/lib/notifications';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'hardcoded-secret-2026';
+
+// ✅ Helper to get client IP
+function getClientIp(req: NextApiRequest): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') return forwarded;
+  if (Array.isArray(forwarded)) return forwarded[0] || '';
+  return req.socket?.remoteAddress || '';
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -16,7 +25,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // ✅ Get user with role name
     const result = await pool.query(
       `SELECT u.id, u.full_name, u.phone, u.password, u.branch_id, u.force_password_reset,
               u.two_factor_enabled, u.two_factor_secret, u.status,
@@ -33,20 +41,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     const user = result.rows[0];
 
-    // ✅ Check if user is active
     if (user.status !== 'active') {
       return res.status(403).json({ 
         error: 'Account is not active. Please contact support.' 
       });
     }
 
-    // Verify password
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // ✅ If 2FA enabled, create temporary token
+    // ✅ 2FA enabled → send temp token
     if (user.two_factor_enabled && user.two_factor_secret) {
       const tempToken = jwt.sign(
         { 
@@ -55,7 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           phone: user.phone
         },
         JWT_SECRET,
-        { expiresIn: '10m' } // 10 minutes to enter 2FA code
+        { expiresIn: '10m' }
       );
 
       return res.status(200).json({
@@ -64,11 +70,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         userId: user.id,
         phone: user.phone,
         message: 'Two-factor authentication required',
-        expiresIn: 600 // 10 minutes in seconds
+        expiresIn: 600
       });
     }
 
-    // ✅ No 2FA → issue full token
+    // ✅ No 2FA → issue full token and send login notification
     const token = jwt.sign(
       {
         userId: user.id,
@@ -80,6 +86,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
       JWT_SECRET,
       { expiresIn: '7d' }
+    );
+
+    // ✅ Create login notification (skip if 2FA flow)
+    await createNotificationForUser(
+      user.id,
+      `🔐 New Login`,
+      `You logged in from ${getClientIp(req)} at ${new Date().toLocaleString()}`,
+      'system',
+      'low'
     );
 
     res.status(200).json({
