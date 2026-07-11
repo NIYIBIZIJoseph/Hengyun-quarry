@@ -84,7 +84,7 @@ export default function SupportConfig() {
           padding: '1rem', 
           background: '#fef3c7', 
           borderRadius: '8px',
-          border: '1px solid '#f59e0b'',
+          border: "'1px solid '#f59e0b'",
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem',
