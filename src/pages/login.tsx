@@ -29,6 +29,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [twoFactorError, setTwoFactorError] = useState('');
+  const [tokenExpired, setTokenExpired] = useState(false);
 
   // Load saved phone from localStorage
   useEffect(() => {
@@ -43,6 +44,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setTokenExpired(false);
     
     try {
       const res = await fetch('/api/auth/login', {
@@ -54,7 +56,9 @@ export default function LoginPage() {
       
       console.log('Login response:', data);
       
-      if (!res.ok) throw new Error(data.error || 'Login failed');
+      if (!res.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
       
       if (data.requiresTwoFactor) {
         setTempToken(data.tempToken);
@@ -68,7 +72,7 @@ export default function LoginPage() {
         throw new Error('No token received from server');
       }
       
-      // ✅ FIXED: Store user data properly
+      // ✅ Store user data properly
       if (rememberMe) {
         localStorage.setItem('rememberedPhone', phone);
       } else {
@@ -77,7 +81,7 @@ export default function LoginPage() {
       
       localStorage.setItem('token', data.token);
       
-      // ✅ FIXED: Proper user object with all fields
+      // ✅ Proper user object with all fields
       const userData = {
         id: data.user.id,
         fullName: data.user.fullName || data.user.full_name || 'User',
@@ -92,7 +96,7 @@ export default function LoginPage() {
       
       document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
       
-      // ✅ FIXED: Use router.push instead of window.location for better handling
+      // ✅ Redirect to dashboard
       router.push('/dashboard');
       
     } catch (err: any) {
@@ -106,6 +110,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setTwoFactorError('');
+    setTokenExpired(false);
     
     if (!code || code.length !== 6) {
       setTwoFactorError('Please enter a valid 6-digit code');
@@ -121,7 +126,26 @@ export default function LoginPage() {
       });
       const data = await res.json();
       
-      if (!res.ok) throw new Error(data.error || 'Verification failed');
+      // ✅ Handle specific token expired error
+      if (res.status === 401 && data.code === 'TOKEN_EXPIRED') {
+        setTokenExpired(true);
+        setTwoFactorError('Verification token has expired. Please login again.');
+        setLoading(false);
+        // Redirect back to login after 3 seconds
+        setTimeout(() => {
+          setStep('credentials');
+          setTempToken('');
+          setUserId(null);
+          setCode('');
+          setTwoFactorError('');
+          setTokenExpired(false);
+        }, 3000);
+        return;
+      }
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Verification failed');
+      }
       
       if (rememberMe) {
         localStorage.setItem('rememberedPhone', phone);
@@ -131,7 +155,7 @@ export default function LoginPage() {
       
       localStorage.setItem('token', data.token);
       
-      // ✅ FIXED: Proper user object
+      // ✅ Proper user object
       const userData = {
         id: data.user.id,
         fullName: data.user.fullName || data.user.full_name || 'User',
@@ -148,6 +172,7 @@ export default function LoginPage() {
       
       router.push('/dashboard');
     } catch (err: any) {
+      console.error('2FA Error:', err);
       setTwoFactorError(err.message);
       setLoading(false);
     }
@@ -155,6 +180,56 @@ export default function LoginPage() {
 
   const goToForgotPassword = () => {
     router.push('/forgot-password');
+  };
+
+  // ✅ Handle resend/retry if token expired
+  const handleRetryLogin = async () => {
+    setLoading(true);
+    setError('');
+    setTokenExpired(false);
+    
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, password }),
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+      
+      if (data.requiresTwoFactor) {
+        setTempToken(data.tempToken);
+        setUserId(data.userId);
+        setTwoFactorError('');
+        setLoading(false);
+        return;
+      }
+      
+      if (!data.token) {
+        throw new Error('No token received');
+      }
+      
+      // Store token and redirect
+      localStorage.setItem('token', data.token);
+      const userData = {
+        id: data.user.id,
+        fullName: data.user.fullName || data.user.full_name || 'User',
+        full_name: data.user.fullName || data.user.full_name || 'User',
+        role: data.user.role || 'user',
+        branchId: data.user.branchId || data.user.branch_id || null,
+        phone: data.user.phone || phone,
+      };
+      localStorage.setItem('user', JSON.stringify(userData));
+      document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+      router.push('/dashboard');
+      
+    } catch (err: any) {
+      setError(err.message);
+      setLoading(false);
+    }
   };
 
   return (
@@ -398,18 +473,44 @@ export default function LoginPage() {
               {twoFactorError && (
                 <div style={{ 
                   padding: '0.75rem 1rem', 
-                  background: '#fee2e2', 
+                  background: tokenExpired ? '#fef3c7' : '#fee2e2', 
                   borderRadius: '8px', 
-                  color: '#dc2626', 
+                  color: tokenExpired ? '#92400e' : '#dc2626', 
                   fontSize: '0.875rem', 
                   marginBottom: '1rem',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem',
                 }}>
-                  <FontAwesomeIcon icon={faExclamationTriangle} />
+                  <FontAwesomeIcon icon={tokenExpired ? faExclamationTriangle : faExclamationTriangle} />
                   {twoFactorError}
                 </div>
+              )}
+
+              {/* ✅ Show retry button if token expired */}
+              {tokenExpired && (
+                <button
+                  type="button"
+                  onClick={handleRetryLogin}
+                  style={{
+                    width: '100%',
+                    padding: '0.7rem',
+                    background: '#f59e0b',
+                    color: '#1f2937',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    marginBottom: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <FontAwesomeIcon icon={faArrowRight} />
+                  Retry Login
+                </button>
               )}
 
               <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -421,6 +522,7 @@ export default function LoginPage() {
                     setUserId(null); 
                     setCode(''); 
                     setTwoFactorError('');
+                    setTokenExpired(false);
                   }}
                   style={{
                     flex: 1,
@@ -437,21 +539,21 @@ export default function LoginPage() {
                 </button>
                 <button 
                   type="submit" 
-                  disabled={loading || code.length !== 6} 
+                  disabled={loading || code.length !== 6 || tokenExpired} 
                   style={{ 
                     flex: 2,
-                    background: (loading || code.length !== 6) ? '#9ca3af' : '#f59e0b', 
+                    background: (loading || code.length !== 6 || tokenExpired) ? '#9ca3af' : '#f59e0b', 
                     color: '#1f2937', 
                     padding: '0.7rem', 
                     borderRadius: '8px', 
                     border: 'none', 
                     fontWeight: '600', 
-                    cursor: (loading || code.length !== 6) ? 'not-allowed' : 'pointer', 
+                    cursor: (loading || code.length !== 6 || tokenExpired) ? 'not-allowed' : 'pointer', 
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center', 
                     gap: '0.5rem',
-                    opacity: (loading || code.length !== 6) ? 0.6 : 1,
+                    opacity: (loading || code.length !== 6 || tokenExpired) ? 0.6 : 1,
                   }}
                 >
                   {loading ? (

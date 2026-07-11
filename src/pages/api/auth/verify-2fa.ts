@@ -16,15 +16,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // Verify temporary token
-    const decoded = jwt.verify(tempToken, JWT_SECRET) as { userId: number; step: string };
-    if (decoded.step !== '2fa') {
-      return res.status(400).json({ error: 'Invalid token' });
+    // ✅ Verify temporary token with better error handling
+    let decoded;
+    try {
+      decoded = jwt.verify(tempToken, JWT_SECRET) as { userId: number; step: string };
+    } catch (jwtError: any) {
+      if (jwtError.name === 'TokenExpiredError') {
+        return res.status(401).json({ 
+          error: 'Verification token has expired. Please login again.',
+          code: 'TOKEN_EXPIRED'
+        });
+      }
+      return res.status(401).json({ 
+        error: 'Invalid verification token. Please login again.',
+        code: 'INVALID_TOKEN'
+      });
     }
 
-    // Fetch user's 2FA secret
+    if (decoded.step !== '2fa') {
+      return res.status(400).json({ error: 'Invalid token step' });
+    }
+
+    // ✅ Fetch user with role
     const userRes = await pool.query(
-      `SELECT two_factor_secret, full_name, branch_id, role_id, phone FROM users WHERE id = $1`,
+      `SELECT u.id, u.two_factor_secret, u.full_name, u.branch_id, u.role_id, u.phone, u.status,
+              r.name as role
+       FROM users u
+       JOIN roles r ON u.role_id = r.id
+       WHERE u.id = $1`,
       [decoded.userId]
     );
     
@@ -33,35 +52,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     
     const user = userRes.rows[0];
+
+    // ✅ Check if user is active
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: 'Account is not active' });
+    }
+    
     if (!user.two_factor_secret) {
       return res.status(400).json({ error: '2FA not set up for this user' });
     }
 
-    // Verify TOTP
+    // ✅ Verify TOTP with wider window
     const verified = speakeasy.totp.verify({
       secret: user.two_factor_secret,
       encoding: 'base32',
       token: code,
-      window: 1,
+      window: 2, // Allows for slight time differences
     });
     
     if (!verified) {
       return res.status(401).json({ error: 'Invalid verification code' });
     }
 
-    // ✅ Get user's role name
-    const roleRes = await pool.query(
-      `SELECT name FROM roles WHERE id = $1`,
-      [user.role_id]
-    );
-    const roleName = roleRes.rows[0]?.name || 'user';
-
     // ✅ Issue full token with ALL needed fields
     const token = jwt.sign(
       {
-        userId: decoded.userId,
+        userId: user.id,
         phone: user.phone,
-        role: roleName,
+        role: user.role,
         branchId: user.branch_id,
         fullName: user.full_name,
       },
@@ -73,16 +91,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       success: true,
       token,
       user: {
-        id: decoded.userId,
+        id: user.id,
         fullName: user.full_name,
         full_name: user.full_name,
-        role: roleName,
+        role: user.role,
         branchId: user.branch_id,
         phone: user.phone,
       },
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Verification failed' });
+    console.error('2FA Verification Error:', err);
+    res.status(500).json({ 
+      error: 'Verification failed. Please try again.' 
+    });
   }
 }

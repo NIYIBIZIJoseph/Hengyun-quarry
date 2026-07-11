@@ -155,6 +155,7 @@ export default function AccountSettings() {
     }
   };
 
+  // ✅ FIXED: Updated to match API expectations (oldPassword, newPassword)
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
@@ -171,12 +172,13 @@ export default function AccountSettings() {
     setPasswordMessage('');
 
     try {
+      // ✅ FIXED: Using oldPassword and newPassword (matches API)
       const res = await fetch('/api/user/change-password', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          current_password: passwordForm.currentPassword,
-          new_password: passwordForm.newPassword,
+          oldPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
         }),
       });
       const data = await res.json();
@@ -299,8 +301,37 @@ export default function AccountSettings() {
             margin: '0 auto',
             border: '4px solid white',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            position: 'relative',
+            overflow: 'hidden',
           }}>
             {!user.avatar && <FontAwesomeIcon icon={faUser} size="3x" style={{ color: 'white' }} />}
+            
+            {/* ✅ Hover Overlay for Avatar */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: 0,
+              transition: 'opacity 0.3s ease',
+              cursor: 'pointer',
+              borderRadius: '50%',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '1';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '0';
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            >
+              <FontAwesomeIcon icon={faCamera} style={{ color: 'white', fontSize: '1.5rem' }} />
+            </div>
           </div>
           <button
             onClick={() => fileInputRef.current?.click()}

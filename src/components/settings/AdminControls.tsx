@@ -463,7 +463,7 @@ export default function AdminControlsSettings() {
               </p>
             </div>
             <button
-              onClick={() => router.push('/dashboard/settings/data')}
+              onClick={() => router.push('/dashboard/settings/backup')}
               style={{
                 padding: '8px 20px',
                 background: COLORS.info,
@@ -488,7 +488,7 @@ export default function AdminControlsSettings() {
               }}
             >
               <FontAwesomeIcon icon={faDatabase} />
-              {t('goToDataManagement') || 'Go to Data Management'}
+              Go to Backup
             </button>
           </div>
         </div>

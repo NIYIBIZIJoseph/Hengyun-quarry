@@ -12,6 +12,7 @@ import {
   faUsers,
   faCheckCircle,
   faExclamationTriangle,
+  faRecycle,
 } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ROLES } from '@/lib/roles';
@@ -79,7 +80,7 @@ export default function RolesPermissions() {
       inventory: 'Inventory',
       order: 'Orders',
       product: 'Products',
-      recycle: 'Recycle Bin',
+      recycle: 'Recycle Bin',  // ✅ Added
       roles: 'Roles',
       security: 'Security',
       settings: 'Settings',
@@ -92,58 +93,106 @@ export default function RolesPermissions() {
 
   const getTranslatedPermission = (permName: string): string => {
     const permMap: Record<string, string> = {
+      // ===== ADMIN =====
       'admin:controls': 'Admin Controls',
+      
+      // ===== ANALYTICS =====
       'analytics:view': 'View Analytics',
+      
+      // ===== ATTENDANCE =====
       'attendance:mark': 'Mark Attendance',
       'attendance:override': 'Override Attendance',
       'attendance:view': 'View Attendance',
+      'attendance:export': 'Export Attendance',
+      
+      // ===== AUDIT =====
       'audit:view': 'View Audit Logs',
+      'audit:export': 'Export Audit Logs',
+      
+      // ===== BRANCH =====
       'branch:create': 'Create Branch',
       'branch:delete': 'Delete Branch',
       'branch:edit': 'Edit Branch',
       'branch:switch': 'Switch Branch',
       'branch:view': 'View Branch',
+      
+      // ===== DASHBOARD =====
       'dashboard:view': 'View Dashboard',
+      'dashboard:stats': 'View Dashboard Stats',
+      
+      // ===== DEPARTMENT =====
       'department:create': 'Create Department',
       'department:delete': 'Delete Department',
       'department:edit': 'Edit Department',
       'department:view': 'View Department',
+      
+      // ===== FAQ =====
       'faq:manage': 'Manage FAQ',
+      
+      // ===== FINANCE =====
       'finance:view': 'View Finance',
+      
+      // ===== INVENTORY =====
       'inventory:adjust': 'Adjust Inventory',
       'inventory:transfer': 'Transfer Inventory',
       'inventory:view': 'View Inventory',
+      'inventory:manage': 'Manage Inventory',
+      
+      // ===== ORDERS =====
       'order:create': 'Create Orders',
       'order:delete': 'Delete Orders',
       'order:edit': 'Edit Orders',
       'order:view': 'View Orders',
+      'order:export': 'Export Orders',
+      
+      // ===== PRODUCTS =====
       'product:create': 'Create Products',
       'product:delete': 'Delete Products',
       'product:edit': 'Edit Products',
       'product:view': 'View Products',
+      
+      // ===== RECYCLE BIN ===== ✅ NEW
       'recycle:view': 'View Recycle Bin',
+      'recycle:restore': 'Restore Items',
+      'recycle:delete': 'Permanently Delete Items',
+      'recycle:bulk-delete': 'Bulk Delete Items',
+      
+      // ===== ROLES =====
       'roles:create': 'Create Roles',
       'roles:delete': 'Delete Roles',
       'roles:edit': 'Edit Roles',
       'roles:view': 'View Roles',
+      
+      // ===== SECURITY =====
       'security:view': 'View Security',
+      
+      // ===== SETTINGS =====
       'settings:edit': 'Edit Settings',
       'settings:view': 'View Settings',
+      
+      // ===== SUPPORT =====
       'support:create': 'Create Support Tickets',
       'support:manage': 'Manage Support',
       'support:reply': 'Reply to Support',
       'support:view': 'View Support',
+      'support:delete': 'Delete Support Tickets',
+      'support:resolve': 'Resolve Support Tickets',
+      
+      // ===== USERS =====
       'user:create': 'Create Users',
       'user:delete': 'Delete Users',
       'user:edit': 'Edit Users',
       'user:suspend': 'Suspend Users',
       'user:view': 'View Users',
+      
+      // ===== WORKERS =====
       'worker:create': 'Create Workers',
       'worker:delete': 'Delete Workers',
       'worker:documents': 'Manage Worker Documents',
       'worker:edit': 'Edit Workers',
       'worker:leave': 'Manage Worker Leave',
       'worker:view': 'View Workers',
+      'worker:export': 'Export Workers',
     };
     return permMap[permName] || permName;
   };
@@ -540,7 +589,10 @@ export default function RolesPermissions() {
                   color: COLORS.textSecondary,
                   borderBottom: `1px solid ${COLORS.border}`,
                 }}>
-                  <FontAwesomeIcon icon={faKey} style={{ color: COLORS.primary, marginRight: '0.5rem' }} />
+                  <FontAwesomeIcon 
+                    icon={module === 'recycle' ? faRecycle : faKey} 
+                    style={{ color: COLORS.primary, marginRight: '0.5rem' }} 
+                  />
                   {getTranslatedModule(module)}
                 </div>
                 <div style={{ 

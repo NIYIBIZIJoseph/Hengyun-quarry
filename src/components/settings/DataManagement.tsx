@@ -1,5 +1,5 @@
 // src/components/settings/DataManagement.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ROLES } from "@/lib/roles";
@@ -8,7 +8,7 @@ import {
   faDatabase, faDownload, faTrashAlt, faRecycle, 
   faSave, faEye, faTrash, faUndo, faCheckSquare, 
   faSquare, faLayerGroup, faClock, faTable,
-  faExclamationTriangle, faCheckCircle, faSpinner
+  faExclamationTriangle, faCheckCircle, faSpinner, faSync
 } from '@fortawesome/free-solid-svg-icons';
 
 // ========== DESIGN TOKENS ==========
@@ -43,7 +43,6 @@ interface DeletedItem {
 // ========== STAT CARD ==========
 function StatCard({ label, value, icon, color = COLORS.primary }: { label: string; value: string | number; icon: any; color?: string }) {
   const [isHovered, setIsHovered] = useState(false);
-
   return (
     <div
       style={{
@@ -82,7 +81,6 @@ function ActionButton({ label, icon, onClick, color = COLORS.primary, disabled =
   loading?: boolean;
 }) {
   const [isHovered, setIsHovered] = useState(false);
-
   return (
     <button
       onClick={onClick}
@@ -140,6 +138,7 @@ export default function DataManagementSettings() {
 
   const canEdit = userRole === ROLES.SUPERADMIN;
 
+  // ========== FETCH FUNCTIONS ==========
   const fetchTables = async () => {
     setLoading(true);
     try {
@@ -156,26 +155,61 @@ export default function DataManagementSettings() {
     }
   };
 
-  const fetchRecycleBin = async () => {
+  // ✅ ENHANCED: fetchRecycleBin with detailed logging and flexible data extraction
+  const fetchRecycleBin = useCallback(async () => {
     setRecycleLoading(true);
     try {
-      const res = await fetch('/api/admin/recycle-bin', {
+      const url = `/api/admin/recycle-bin?_=${Date.now()}`;
+      console.log('🔍 Fetching recycle bin from:', url);
+      const res = await fetch(url, {
         headers: getAuthHeaders(),
       });
-      if (!res.ok) throw new Error('Failed to fetch deleted items');
+      console.log('📊 Response status:', res.status);
+      
+      if (!res.ok) {
+        console.error('❌ Response not OK:', res.status);
+        const errorText = await res.text();
+        console.error('❌ Error body:', errorText);
+        setDeletedItems([]);
+        setRecycleLoading(false);
+        return;
+      }
+      
       const data = await res.json();
-      setDeletedItems(data);
+      console.log('📊 Raw data from API:', data);
+      console.log('📊 Data type:', typeof data);
+      console.log('📊 Is array:', Array.isArray(data));
+      console.log('📊 Length:', Array.isArray(data) ? data.length : 'N/A');
+      
+      // ✅ Extract array from various possible structures
+      let items = [];
+      if (Array.isArray(data)) {
+        items = data;
+      } else if (data && typeof data === 'object' && Array.isArray(data.data)) {
+        items = data.data;
+      } else if (data && typeof data === 'object' && Array.isArray(data.rows)) {
+        items = data.rows;
+      } else {
+        console.warn('⚠️ Unexpected data structure:', data);
+        items = [];
+      }
+      
+      setDeletedItems(items);
+      console.log('✅ Set deletedItems to:', items.length, 'items');
+      
     } catch (err: any) {
-      console.error(err);
+      console.error('❌ Recycle bin error:', err);
+      setDeletedItems([]);
     } finally {
       setRecycleLoading(false);
     }
-  };
+  }, []);
 
+  // Fetch on mount
   useEffect(() => {
     fetchTables();
     fetchRecycleBin();
-  }, []);
+  }, [fetchRecycleBin]);
 
   const showMessage = (msg: string, type: 'success' | 'error' = 'success') => {
     setMessage(msg);
@@ -183,6 +217,7 @@ export default function DataManagementSettings() {
     setTimeout(() => setMessage(''), 5000);
   };
 
+  // ========== CRUD OPERATIONS ==========
   const exportTable = async () => {
     if (!canEdit) return;
     setExportLoading(true);
@@ -293,7 +328,7 @@ export default function DataManagementSettings() {
     }
   };
 
-  // ✅ FIXED: Restore item with better error handling
+  // ✅ RESTORE ITEM
   const restoreItem = async (item: DeletedItem) => {
     if (!confirm(`Restore ${item.name}?`)) return;
 
@@ -325,7 +360,7 @@ export default function DataManagementSettings() {
     }
   };
 
-  // ✅ FIXED: Permanent delete with better error handling
+  // ✅ PERMANENT DELETE SINGLE ITEM (handles 207)
   const permanentDeleteItem = async (item: DeletedItem) => {
     if (!confirm(`⚠️ Permanently delete ${item.name}? This cannot be undone.`)) return;
 
@@ -342,6 +377,21 @@ export default function DataManagementSettings() {
       });
 
       const data = await res.json();
+
+      if (res.status === 207) {
+        if (data.failed && data.failed.length > 0) {
+          const errorMsg = data.failed.map((f: any) => 
+            `• ${f.id}: ${f.error}`
+          ).join('\n');
+          showMessage(`⚠️ ${data.message}\n${errorMsg}`, 'error');
+        } else {
+          showMessage(`✅ ${item.name} permanently deleted`);
+        }
+        await fetchRecycleBin();
+        await fetchTables();
+        setActionLoading(null);
+        return;
+      }
 
       if (!res.ok) {
         throw new Error(data.error || 'Delete failed');
@@ -391,7 +441,24 @@ export default function DataManagementSettings() {
         body: JSON.stringify({ items }),
       });
 
-      if (!res.ok) throw new Error('Bulk delete failed');
+      const data = await res.json();
+
+      if (res.status === 207) {
+        if (data.failed && data.failed.length > 0) {
+          const errorMsg = data.failed.map((f: any) => 
+            `• ${f.id}: ${f.error}`
+          ).join('\n');
+          showMessage(`⚠️ ${data.message}\n${errorMsg}`, 'error');
+        } else {
+          showMessage(`✅ ${selectedItems.size} items permanently deleted`);
+        }
+        await fetchRecycleBin();
+        setSelectedItems(new Set());
+        setBulkLoading(false);
+        return;
+      }
+
+      if (!res.ok) throw new Error(data.error || 'Bulk delete failed');
 
       showMessage(`✅ ${selectedItems.size} items permanently deleted`);
       await fetchRecycleBin();
@@ -403,6 +470,7 @@ export default function DataManagementSettings() {
     }
   };
 
+  // ========== RENDER ==========
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
@@ -457,7 +525,6 @@ export default function DataManagementSettings() {
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
-        
         {/* Export Data Section */}
         <div style={{ 
           background: 'white', 
@@ -679,7 +746,7 @@ export default function DataManagementSettings() {
         </div>
       </div>
 
-      {/* Recycle Bin Section */}
+      {/* ✅ RECYCLE BIN SECTION */}
       <div style={{ 
         marginTop: '2rem', 
         background: 'white', 
@@ -696,96 +763,149 @@ export default function DataManagementSettings() {
               {deletedItems.length} {t('items') || 'items'} {t('inRecycleBin') || 'in recycle bin'}
             </p>
           </div>
-          {deletedItems.length > 0 && canEdit && (
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button
-                onClick={selectAll}
-                style={{
-                  padding: '6px 12px',
-                  background: COLORS.bgGray,
-                  border: `1px solid ${COLORS.border}`,
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '0.8rem',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = COLORS.primary;
-                  e.currentTarget.style.color = COLORS.primary;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = COLORS.border;
-                  e.currentTarget.style.color = COLORS.textPrimary;
-                }}
-              >
-                <FontAwesomeIcon icon={faCheckSquare} /> {t('selectAll') || 'Select All'}
-              </button>
-              <button
-                onClick={deselectAll}
-                style={{
-                  padding: '6px 12px',
-                  background: COLORS.bgGray,
-                  border: `1px solid ${COLORS.border}`,
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '0.8rem',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = COLORS.primary;
-                  e.currentTarget.style.color = COLORS.primary;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = COLORS.border;
-                  e.currentTarget.style.color = COLORS.textPrimary;
-                }}
-              >
-                <FontAwesomeIcon icon={faSquare} /> {t('deselectAll') || 'Deselect All'}
-              </button>
-              {selectedItems.size > 0 && (
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {/* ✅ Refresh Button */}
+            <button
+              onClick={fetchRecycleBin}
+              disabled={recycleLoading}
+              style={{
+                padding: '6px 12px',
+                background: COLORS.info,
+                border: 'none',
+                borderRadius: '6px',
+                cursor: recycleLoading ? 'not-allowed' : 'pointer',
+                color: 'white',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                transition: 'all 0.2s',
+                opacity: recycleLoading ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!recycleLoading) {
+                  e.currentTarget.style.backgroundColor = '#2563eb';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!recycleLoading) {
+                  e.currentTarget.style.backgroundColor = COLORS.info;
+                }
+              }}
+            >
+              <FontAwesomeIcon icon={faSync} spin={recycleLoading} />
+              {recycleLoading ? 'Loading...' : 'Refresh'}
+            </button>
+            {deletedItems.length > 0 && canEdit && (
+              <>
                 <button
-                  onClick={bulkDelete}
-                  disabled={bulkLoading}
+                  onClick={selectAll}
                   style={{
                     padding: '6px 12px',
-                    background: COLORS.danger,
-                    border: 'none',
+                    background: COLORS.bgGray,
+                    border: `1px solid ${COLORS.border}`,
                     borderRadius: '6px',
-                    cursor: bulkLoading ? 'not-allowed' : 'pointer',
-                    color: 'white',
+                    cursor: 'pointer',
                     fontSize: '0.8rem',
-                    fontWeight: '500',
+                    transition: 'all 0.2s',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.3rem',
-                    transition: 'all 0.2s',
                   }}
                   onMouseEnter={(e) => {
-                    if (!bulkLoading) {
-                      e.currentTarget.style.backgroundColor = '#dc2626';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }
+                    e.currentTarget.style.borderColor = COLORS.primary;
+                    e.currentTarget.style.color = COLORS.primary;
                   }}
                   onMouseLeave={(e) => {
-                    if (!bulkLoading) {
-                      e.currentTarget.style.backgroundColor = COLORS.danger;
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }
+                    e.currentTarget.style.borderColor = COLORS.border;
+                    e.currentTarget.style.color = COLORS.textPrimary;
                   }}
                 >
-                  <FontAwesomeIcon icon={faTrash} />
-                  {bulkLoading ? (t('deleting') || 'Deleting...') : `${t('deleteSelected') || 'Delete Selected'} (${selectedItems.size})`}
+                  <FontAwesomeIcon icon={faCheckSquare} /> {t('selectAll') || 'Select All'}
                 </button>
-              )}
-            </div>
-          )}
+                <button
+                  onClick={deselectAll}
+                  style={{
+                    padding: '6px 12px',
+                    background: COLORS.bgGray,
+                    border: `1px solid ${COLORS.border}`,
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = COLORS.primary;
+                    e.currentTarget.style.color = COLORS.primary;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = COLORS.border;
+                    e.currentTarget.style.color = COLORS.textPrimary;
+                  }}
+                >
+                  <FontAwesomeIcon icon={faSquare} /> {t('deselectAll') || 'Deselect All'}
+                </button>
+                {selectedItems.size > 0 && (
+                  <button
+                    onClick={bulkDelete}
+                    disabled={bulkLoading}
+                    style={{
+                      padding: '6px 12px',
+                      background: COLORS.danger,
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: bulkLoading ? 'not-allowed' : 'pointer',
+                      color: 'white',
+                      fontSize: '0.8rem',
+                      fontWeight: '500',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!bulkLoading) {
+                        e.currentTarget.style.backgroundColor = '#dc2626';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!bulkLoading) {
+                        e.currentTarget.style.backgroundColor = COLORS.danger;
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faTrash} />
+                    {bulkLoading ? (t('deleting') || 'Deleting...') : `${t('deleteSelected') || 'Delete Selected'} (${selectedItems.size})`}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </div>
+
+        {/* ✅ DEBUG: Show a warning if items are 0 but not loading */}
+        {!recycleLoading && deletedItems.length === 0 && (
+          <div style={{ 
+            background: '#fef3c7', 
+            padding: '8px 12px', 
+            borderRadius: '6px',
+            marginBottom: '1rem',
+            fontSize: '0.8rem',
+            color: '#92400e',
+            border: '1px solid #f59e0b'
+          }}>
+            <strong>⚠️ Debug:</strong> API returned 0 items. Check browser console (F12) for logs.
+            <br />
+            <span style={{ fontSize: '0.75rem' }}>
+              If you see items in the console but not here, the data structure might be unexpected.
+            </span>
+          </div>
+        )}
 
         {recycleLoading ? (
           <div style={{ textAlign: 'center', padding: '2rem' }}>

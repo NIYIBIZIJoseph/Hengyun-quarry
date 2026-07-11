@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import type { AppProps } from 'next/app';
+import { useRouter } from 'next/router';
 import BackToTop from '@/components/BackToTop';
+import WhatsAppButton from '@/components/WhatsAppButton';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { getAuthHeaders, getUserRoleFromToken } from '@/lib/auth-client';
 import { ROLES } from '@/lib/roles';
@@ -11,6 +13,8 @@ import '../styles/components.css';
 import '../styles/responsive.css';
 
 export default function App({ Component, pageProps }: AppProps) {
+  const router = useRouter();
+  const isPublic = !router.pathname.startsWith('/dashboard');
   // Apply user preferences (theme, compact mode)
   useEffect(() => {
     const applyPreferences = async () => {
@@ -61,6 +65,7 @@ export default function App({ Component, pageProps }: AppProps) {
     <LanguageProvider>
       <Component {...pageProps} />
       <BackToTop />
+      {isPublic && <WhatsAppButton />}
     </LanguageProvider>
   );
 }

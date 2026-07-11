@@ -81,6 +81,7 @@ export default function QuickActions() {
     }
   }, []);
 
+  // ✅ UPDATED: Point to existing listing pages (where users can click "Add")
   const actions: {
     label: string;
     icon: any;
@@ -91,35 +92,35 @@ export default function QuickActions() {
     {
       label: t('addProduct') || 'Add Product',
       icon: faPlus,
-      path: '/dashboard/products/new',
+      path: '/dashboard/products',          // existing page
       roles: [ROLES.SUPERADMIN, ROLES.ADMIN],
       color: actionColors.addProduct,
     },
     {
       label: t('createOrder') || 'Create Order',
       icon: faShoppingCart,
-      path: '/dashboard/orders/new',
+      path: '/dashboard/orders',            // existing page
       roles: [ROLES.SUPERADMIN, ROLES.ADMIN],
       color: actionColors.createOrder,
     },
     {
       label: t('addWorker') || 'Add Worker',
       icon: faUserPlus,
-      path: '/dashboard/workers/new',
+      path: '/dashboard/workers',           // existing page
       roles: [ROLES.SUPERADMIN, ROLES.ADMIN],
       color: actionColors.addWorker,
     },
     {
       label: t('markAttendance') || 'Mark Attendance',
       icon: faCalendarCheck,
-      path: '/dashboard/attendance/mark',
+      path: '/dashboard/attendance/weekly',        // existing page
       roles: [ROLES.SUPERADMIN, ROLES.ADMIN],
       color: actionColors.markAttendance,
     },
     {
       label: t('openTicket') || 'Open Ticket',
       icon: faTicketAlt,
-      path: '/dashboard/support/new',
+      path: '/dashboard/support',           // existing page
       roles: [ROLES.SUPERADMIN, ROLES.ADMIN],
       color: actionColors.openTicket,
     },
