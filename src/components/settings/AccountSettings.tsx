@@ -2,8 +2,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faUser, faEnvelope, faPhone, faKey, faSave, faShieldAlt, 
+import {
+  faUser, faEnvelope, faPhone, faKey, faSave, faShieldAlt,
   faQrcode, faCamera, faCheckCircle, faCopy, faEye, faEyeSlash,
   faExclamationTriangle, faArrowLeft
 } from '@fortawesome/free-solid-svg-icons';
@@ -34,6 +34,9 @@ export default function AccountSettings() {
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ✅ NEW: state for avatar preview modal
+  const [showAvatarPreview, setShowAvatarPreview] = useState(false);
 
   // Password change state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -73,7 +76,7 @@ export default function AccountSettings() {
           name: data.full_name || data.fullName || '',
           email: data.email || '',
           phone: data.phone || '',
-          avatar: data.profile_image || data.avatar_url || '',
+          avatar: data.avatar_url || data.profile_image || '',
         });
       }
     } catch (err) {
@@ -95,38 +98,70 @@ export default function AccountSettings() {
     }
   };
 
+  // ✅ UPLOAD avatar (base64) — 2MB limit
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  if (file.size > 2 * 1024 * 1024) {
-    setError('Image must be under 2MB');
-    setTimeout(() => setError(''), 4000);
-    return;
-  }
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Image must be under 2MB');
+      setTimeout(() => setError(''), 4000);
+      return;
+    }
 
-  setUploading(true);
-  setError('');
-  setMessage('');
+    setUploading(true);
+    setError('');
+    setMessage('');
 
-  const reader = new FileReader();
-  reader.onloadend = async () => {
-    const base64 = reader.result as string;
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      try {
+        const res = await fetch('/api/user/upload-avatar', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ image: base64 }),
+        });
+        const data = await res.json();
+        if (res.ok && data.avatar_url) {
+          setUser({ ...user, avatar: data.avatar_url });
+          setMessage('Profile picture updated');
+          setTimeout(() => setMessage(''), 3000);
+          // Broadcast to header
+          window.dispatchEvent(new CustomEvent('avatar-updated', { detail: data.avatar_url }));
+        } else {
+          throw new Error(data.error || 'Upload failed');
+        }
+      } catch (err: any) {
+        setError(err.message);
+        setTimeout(() => setError(''), 4000);
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // ✅ NEW: Remove avatar
+  const handleRemoveAvatar = async () => {
+    if (!confirm('Remove your profile picture?')) return;
+    setUploading(true);
+    setError('');
+    setMessage('');
     try {
       const res = await fetch('/api/user/upload-avatar', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ image: base64 }),
+        body: JSON.stringify({ image: '' }),
       });
-      const data = await res.json();
-      if (res.ok && data.avatar_url) {
-        setUser({ ...user, avatar: data.avatar_url });
-        setMessage('Profile picture updated');
-        setTimeout(() => setMessage(''), 3000);
-        window.dispatchEvent(new CustomEvent('avatar-updated', { detail: data.avatar_url }));
-      } else {
-        throw new Error(data.error || 'Upload failed');
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Remove failed');
       }
+      setUser({ ...user, avatar: '' });
+      setMessage('Profile picture removed');
+      setTimeout(() => setMessage(''), 3000);
+      window.dispatchEvent(new CustomEvent('avatar-updated', { detail: '' }));
     } catch (err: any) {
       setError(err.message);
       setTimeout(() => setError(''), 4000);
@@ -134,8 +169,6 @@ export default function AccountSettings() {
       setUploading(false);
     }
   };
-  reader.readAsDataURL(file);
-};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,7 +195,6 @@ export default function AccountSettings() {
     }
   };
 
-  // ✅ FIXED: Updated to match API expectations (oldPassword, newPassword)
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
@@ -179,7 +211,6 @@ export default function AccountSettings() {
     setPasswordMessage('');
 
     try {
-      // ✅ FIXED: Using oldPassword and newPassword (matches API)
       const res = await fetch('/api/user/change-password', {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -287,9 +318,9 @@ export default function AccountSettings() {
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
       {/* Profile Header with Avatar */}
-      <div style={{ 
-        background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`, 
-        borderRadius: '16px', 
+      <div style={{
+        background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+        borderRadius: '16px',
         padding: '2rem',
         marginBottom: '2rem',
         color: 'white',
@@ -297,55 +328,57 @@ export default function AccountSettings() {
         boxShadow: COLORS.shadowHover,
       }}>
         <div style={{ position: 'relative', display: 'inline-block' }}>
-          <div style={{
-            width: '120px',
-            height: '120px',
-            borderRadius: '50%',
-            background: user.avatar ? `url(${user.avatar}) center/cover` : 'rgba(255,255,255,0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto',
-            border: '4px solid white',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            position: 'relative',
-            overflow: 'hidden',
-          }}>
-            {!user.avatar && <FontAwesomeIcon icon={faUser} size="3x" style={{ color: 'white' }} />}
-            
-            {/* ✅ Hover Overlay for Avatar */}
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0,0,0,0.4)',
+          <div
+            style={{
+              width: '120px',
+              height: '120px',
+              borderRadius: '50%',
+              background: user.avatar ? `url(${user.avatar}) center/cover` : 'rgba(255,255,255,0.2)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              opacity: 0,
-              transition: 'opacity 0.3s ease',
-              cursor: 'pointer',
-              borderRadius: '50%',
+              margin: '0 auto',
+              border: '4px solid white',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              position: 'relative',
+              overflow: 'hidden',
+              cursor: user.avatar ? 'zoom-in' : 'default',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = '1';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = '0';
-            }}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => user.avatar && setShowAvatarPreview(true)}
+          >
+            {!user.avatar && <FontAwesomeIcon icon={faUser} size="3x" style={{ color: 'white' }} />}
+
+            {/* Camera overlay on hover */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0,0,0,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: 0,
+                transition: 'opacity 0.3s ease',
+                cursor: 'pointer',
+                borderRadius: '50%',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0'; }}
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
             >
               <FontAwesomeIcon icon={faCamera} style={{ color: 'white', fontSize: '1.5rem' }} />
             </div>
           </div>
+
+          {/* Camera button bottom-right */}
           <button
             onClick={() => fileInputRef.current?.click()}
             style={{
               position: 'absolute',
-              bottom: '5px',
-              right: '5px',
+              bottom: '5px', right: '5px',
               background: 'white',
               border: 'none',
               borderRadius: '50%',
@@ -359,15 +392,44 @@ export default function AccountSettings() {
               boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
               transition: 'all 0.2s',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.1)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+            title="Change photo"
           >
             <FontAwesomeIcon icon={faCamera} />
           </button>
+
+          {/* Remove button (only when avatar exists) */}
+          {user.avatar && (
+            <button
+              onClick={handleRemoveAvatar}
+              style={{
+                position: 'absolute',
+                top: '5px', right: '5px',
+                background: COLORS.danger,
+                border: '2px solid white',
+                borderRadius: '50%',
+                width: '30px',
+                height: '30px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                transition: 'all 0.2s',
+                fontSize: '1rem',
+                fontWeight: 'bold',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+              title="Remove photo"
+            >
+              ×
+            </button>
+          )}
+
+          {/* Hidden file input */}
           <input
             type="file"
             ref={fileInputRef}
@@ -376,23 +438,24 @@ export default function AccountSettings() {
             style={{ display: 'none' }}
           />
         </div>
+
         <h2 style={{ marginTop: '1rem', marginBottom: '0.25rem', fontSize: '1.5rem' }}>{user.name}</h2>
         <p style={{ opacity: 0.9, marginBottom: 0 }}>{user.email} • {user.phone}</p>
         {uploading && <p style={{ fontSize: '0.8rem', marginTop: '0.5rem', opacity: 0.8 }}>Uploading...</p>}
       </div>
 
       {/* Profile Form */}
-      <div style={{ 
-        background: 'white', 
-        padding: '1.5rem', 
-        borderRadius: '12px', 
+      <div style={{
+        background: 'white',
+        padding: '1.5rem',
+        borderRadius: '12px',
         marginBottom: '1.5rem',
         boxShadow: COLORS.shadow,
       }}>
         <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: COLORS.textPrimary }}>
           <FontAwesomeIcon icon={faUser} style={{ color: COLORS.primary }} /> Profile Information
         </h3>
-        
+
         {message && (
           <div style={{ marginBottom: '1rem', padding: '12px', background: '#d1fae5', borderRadius: '8px', color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <FontAwesomeIcon icon={faCheckCircle} /> {message}
@@ -547,9 +610,9 @@ export default function AccountSettings() {
       </div>
 
       {/* 2FA Status Card */}
-      <div style={{ 
-        background: 'white', 
-        padding: '1.5rem', 
+      <div style={{
+        background: 'white',
+        padding: '1.5rem',
         borderRadius: '12px',
         boxShadow: COLORS.shadow,
       }}>
@@ -559,9 +622,9 @@ export default function AccountSettings() {
         <p style={{ color: COLORS.textMuted, marginBottom: '1rem', fontSize: '0.85rem' }}>
           Add an extra layer of security to your account.
         </p>
-        <div style={{ 
-          background: twoFactorEnabled ? '#d1fae5' : '#fef3c7', 
-          padding: '1rem', 
+        <div style={{
+          background: twoFactorEnabled ? '#d1fae5' : '#fef3c7',
+          padding: '1rem',
           borderRadius: '8px',
           display: 'flex',
           alignItems: 'center',
@@ -574,8 +637,8 @@ export default function AccountSettings() {
               {twoFactorEnabled ? '✅ 2FA is ENABLED' : '⚠️ 2FA is DISABLED'}
             </strong>
             <p style={{ fontSize: '0.8rem', marginTop: '0.25rem', marginBottom: 0, color: COLORS.textSecondary }}>
-              {twoFactorEnabled 
-                ? 'Your account is protected with two-factor authentication.' 
+              {twoFactorEnabled
+                ? 'Your account is protected with two-factor authentication.'
                 : 'Enable 2FA to add an extra layer of security to your account.'}
             </p>
           </div>
@@ -646,11 +709,11 @@ export default function AccountSettings() {
           background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
           backdropFilter: 'blur(4px)',
         }} onClick={() => setShowPasswordModal(false)}>
-          <div style={{ 
-            background: 'white', 
-            padding: '24px', 
-            borderRadius: '16px', 
-            width: '450px', 
+          <div style={{
+            background: 'white',
+            padding: '24px',
+            borderRadius: '16px',
+            width: '450px',
             maxWidth: '90%',
             boxShadow: COLORS.shadowHover,
             animation: 'slideUp 0.3s ease',
@@ -689,16 +752,16 @@ export default function AccountSettings() {
                   {t('currentPassword') || 'Current Password'}
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${COLORS.border}`, borderRadius: '8px', overflow: 'hidden' }}>
-                  <input 
-                    type={showCurrentPassword ? "text" : "password"} 
-                    value={passwordForm.currentPassword} 
-                    onChange={e => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })} 
-                    required 
-                    style={{ flex: 1, padding: '10px 12px', border: 'none', outline: 'none', fontSize: '0.9rem' }} 
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={passwordForm.currentPassword}
+                    onChange={e => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                    required
+                    style={{ flex: 1, padding: '10px 12px', border: 'none', outline: 'none', fontSize: '0.9rem' }}
                   />
-                  <button 
-                    type="button" 
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)} 
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                     style={{ background: 'none', border: 'none', padding: '0 10px', cursor: 'pointer', color: COLORS.textMuted }}
                   >
                     <FontAwesomeIcon icon={showCurrentPassword ? faEyeSlash : faEye} />
@@ -710,17 +773,17 @@ export default function AccountSettings() {
                   {t('newPassword') || 'New Password'}
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${COLORS.border}`, borderRadius: '8px', overflow: 'hidden' }}>
-                  <input 
-                    type={showNewPassword ? "text" : "password"} 
-                    value={passwordForm.newPassword} 
-                    onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} 
-                    required 
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={passwordForm.newPassword}
+                    onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                    required
                     minLength={6}
-                    style={{ flex: 1, padding: '10px 12px', border: 'none', outline: 'none', fontSize: '0.9rem' }} 
+                    style={{ flex: 1, padding: '10px 12px', border: 'none', outline: 'none', fontSize: '0.9rem' }}
                   />
-                  <button 
-                    type="button" 
-                    onClick={() => setShowNewPassword(!showNewPassword)} 
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
                     style={{ background: 'none', border: 'none', padding: '0 10px', cursor: 'pointer', color: COLORS.textMuted }}
                   >
                     <FontAwesomeIcon icon={showNewPassword ? faEyeSlash : faEye} />
@@ -731,12 +794,12 @@ export default function AccountSettings() {
                 <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', color: COLORS.textSecondary }}>
                   {t('confirmPassword') || 'Confirm Password'}
                 </label>
-                <input 
-                  type="password" 
-                  value={passwordForm.confirmPassword} 
-                  onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} 
-                  required 
-                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${COLORS.border}`, borderRadius: '8px', fontSize: '0.9rem' }} 
+                <input
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  required
+                  style={{ width: '100%', padding: '10px 12px', border: `1px solid ${COLORS.border}`, borderRadius: '8px', fontSize: '0.9rem' }}
                 />
               </div>
               {passwordError && <div style={{ color: COLORS.danger, marginBottom: '1rem', fontSize: '0.875rem' }}>{passwordError}</div>}
@@ -803,13 +866,13 @@ export default function AccountSettings() {
           background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
           backdropFilter: 'blur(4px)',
         }} onClick={() => setShow2FAModal(false)}>
-          <div style={{ 
-            background: 'white', 
-            padding: '24px', 
-            borderRadius: '16px', 
-            width: '500px', 
-            maxWidth: '90%', 
-            maxHeight: '90vh', 
+          <div style={{
+            background: 'white',
+            padding: '24px',
+            borderRadius: '16px',
+            width: '500px',
+            maxWidth: '90%',
+            maxHeight: '90vh',
             overflowY: 'auto',
             boxShadow: COLORS.shadowHover,
             animation: 'slideUp 0.3s ease',
@@ -851,12 +914,12 @@ export default function AccountSettings() {
               </div>
             )}
             <p style={{ fontWeight: '500', fontSize: '0.85rem', color: COLORS.textSecondary }}>Or enter this secret manually:</p>
-            <code style={{ 
-              display: 'block', 
-              background: COLORS.bgGray, 
-              padding: '8px 12px', 
-              borderRadius: '6px', 
-              wordBreak: 'break-all', 
+            <code style={{
+              display: 'block',
+              background: COLORS.bgGray,
+              padding: '8px 12px',
+              borderRadius: '6px',
+              wordBreak: 'break-all',
               marginBottom: '1rem',
               fontFamily: 'monospace',
               fontSize: '0.85rem',
@@ -867,18 +930,18 @@ export default function AccountSettings() {
                   <FontAwesomeIcon icon={faCopy} style={{ marginRight: '0.5rem', color: COLORS.primary }} />
                   Backup codes (save these somewhere safe):
                 </p>
-                <div style={{ 
-                  background: COLORS.bgGray, 
-                  padding: '8px 12px', 
-                  borderRadius: '6px', 
-                  marginBottom: '1rem', 
+                <div style={{
+                  background: COLORS.bgGray,
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  marginBottom: '1rem',
                   position: 'relative',
                 }}>
                   {backupCodes.map((code, i) => (
                     <div key={i} style={{ fontFamily: 'monospace', fontSize: '14px', padding: '2px 0' }}>{code}</div>
                   ))}
-                  <button 
-                    onClick={copyBackupCodes} 
+                  <button
+                    onClick={copyBackupCodes}
                     style={{
                       position: 'absolute',
                       top: '8px',
@@ -908,12 +971,12 @@ export default function AccountSettings() {
               <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', color: COLORS.textSecondary }}>
                 {t('verificationCode') || 'Verification Code'}
               </label>
-              <input 
-                type="text" 
-                value={verificationCode} 
-                onChange={e => setVerificationCode(e.target.value)} 
-                placeholder="000000" 
-                maxLength={6} 
+              <input
+                type="text"
+                value={verificationCode}
+                onChange={e => setVerificationCode(e.target.value)}
+                placeholder="000000"
+                maxLength={6}
                 style={{
                   width: '100%',
                   padding: '10px 12px',
@@ -934,8 +997,8 @@ export default function AccountSettings() {
               />
             </div>
             {twoFactorMessage && (
-              <div style={{ 
-                color: twoFactorMessage.includes('success') ? COLORS.success : COLORS.danger, 
+              <div style={{
+                color: twoFactorMessage.includes('success') ? COLORS.success : COLORS.danger,
                 marginBottom: '1rem',
                 padding: '8px 12px',
                 background: twoFactorMessage.includes('success') ? '#d1fae5' : '#fee2e2',
@@ -997,6 +1060,61 @@ export default function AccountSettings() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ✅ NEW: Full-size avatar preview modal */}
+      {showAvatarPreview && user.avatar && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            cursor: 'zoom-out',
+            padding: '2rem',
+          }}
+          onClick={() => setShowAvatarPreview(false)}
+        >
+          <img
+            src={user.avatar}
+            alt="Profile Preview"
+            style={{
+              maxWidth: '85vw',
+              maxHeight: '85vh',
+              borderRadius: '12px',
+              boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setShowAvatarPreview(false)}
+            style={{
+              position: 'absolute',
+              top: '24px',
+              right: '24px',
+              background: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '48px',
+              height: '48px',
+              fontSize: '24px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#111827',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+          >
+            ×
+          </button>
         </div>
       )}
 
