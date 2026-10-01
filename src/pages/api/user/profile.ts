@@ -10,8 +10,8 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) 
 
     const result = await pool.query(
       `
-      SELECT id, full_name, phone, email, profile_image, two_factor_enabled
-      FROM users WHERE id = $1
+     SELECT id, full_name, phone, email, profile_image, avatar_url, two_factor_enabled
+FROM users WHERE id = $1
       `,
       [user.userId]
     );
@@ -72,8 +72,8 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user) 
 
     const updated = await pool.query(
       `
-      SELECT id, full_name, phone, email, profile_image, two_factor_enabled
-      FROM users WHERE id = $1
+     SELECT id, full_name, phone, email, profile_image, avatar_url, two_factor_enabled
+FROM users WHERE id = $1
       `,
       [user.userId]
     );

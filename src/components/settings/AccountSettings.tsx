@@ -96,39 +96,44 @@ export default function AccountSettings() {
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    setUploading(true);
-    const formData = new FormData();
-    formData.append('image', file);
-    
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  if (file.size > 2 * 1024 * 1024) {
+    setError('Image must be under 2MB');
+    setTimeout(() => setError(''), 4000);
+    return;
+  }
+
+  setUploading(true);
+  const reader = new FileReader();
+  reader.onloadend = async () => {
+    const base64 = reader.result as string;
     try {
-      const res = await fetch('/api/upload', {
+      const res = await fetch('/api/user/upload-avatar', {
         method: 'POST',
-        headers: { 'Authorization': getAuthHeaders().Authorization as string },
-        body: formData,
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ image: base64 }),
       });
       const data = await res.json();
-      if (res.ok && data.url) {
-        const updateRes = await fetch('/api/user/profile', {
-          method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ profile_image: data.url }),
-        });
-        if (updateRes.ok) {
-          setUser({ ...user, avatar: data.url });
-          setMessage('Profile picture updated');
-          setTimeout(() => setMessage(''), 3000);
-        }
+      if (res.ok && data.avatar_url) {
+        setUser({ ...user, avatar: data.avatar_url });
+        setMessage('Profile picture updated');
+        setTimeout(() => setMessage(''), 3000);
+        // Notify header to refresh
+        window.dispatchEvent(new CustomEvent('avatar-updated', { detail: data.avatar_url }));
+      } else {
+        throw new Error(data.error || 'Upload failed');
       }
     } catch (err: any) {
       setError(err.message);
-      setTimeout(() => setError(''), 3000);
+      setTimeout(() => setError(''), 4000);
     } finally {
       setUploading(false);
     }
   };
+  reader.readAsDataURL(file);
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
