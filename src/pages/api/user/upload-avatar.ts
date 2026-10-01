@@ -22,13 +22,13 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       return res.status(413).json({ error: 'Image too large (max 4MB)' });
     }
 
-    // ✅ FIXED: explicit ::text cast resolves the "inconsistent types" error
+    // ✅ FIXED: three separate parameters — $1 and $2 for the same value, $3 for ID
     await pool.query(
       `UPDATE users 
        SET avatar_url = $1::text, 
-           profile_image = $1::text 
-       WHERE id = $2`,
-      [image, user.userId]
+           profile_image = $2::text 
+       WHERE id = $3`,
+      [image, image, user.userId]
     );
 
     await logAudit({
