@@ -1,7 +1,8 @@
 export const ROLES = {
-  SUPERADMIN: 'SUPERADMIN',
-  ADMIN: 'ADMIN',
-  SUPERVISOR: 'SUPERVISOR',
-  SERVICE_PROVIDER: 'SERVICE_PROVIDER',
+  SUPERADMIN: 'superadmin',
+  ADMIN: 'admin',
+  SUPERVISOR: 'supervisor',
+  SERVICE_PROVIDER: 'service_provider',
 } as const;
+
 export type Role = typeof ROLES[keyof typeof ROLES];
