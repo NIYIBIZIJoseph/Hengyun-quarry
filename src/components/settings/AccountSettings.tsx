@@ -99,8 +99,8 @@ export default function AccountSettings() {
   const file = e.target.files?.[0];
   if (!file) return;
 
-  if (file.size > 2 * 1024 * 1024) {
-    setError('Image must be under 2MB');
+  if (file.size > 4 * 1024 * 1024) {
+  setError('Image must be under 4MB');
     setTimeout(() => setError(''), 4000);
     return;
   }

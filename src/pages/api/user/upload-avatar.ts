@@ -4,7 +4,7 @@ import { withAuth } from '@/lib/middleware/withAuth';
 import { logAudit } from '@/lib/audit';
 
 export const config = {
-  api: { bodyParser: { sizeLimit: '3mb' } },
+  api: { bodyParser: { sizeLimit: '6mb' } },
 };
 
 export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: any) => {
@@ -16,9 +16,9 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
     if (!image || !image.startsWith('data:image/')) {
       return res.status(400).json({ error: 'Only image files are allowed' });
     }
-    if (image.length > 3_000_000) {
-      return res.status(413).json({ error: 'Image too large (max 2MB)' });
-    }
+   if (image.length > 6_000_000) {
+  return res.status(413).json({ error: 'Image too large (max 4MB)' });
+}
     await pool.query(
       `UPDATE users SET avatar_url = $1, profile_image = $1 WHERE id = $2`,
       [image, user.userId]
