@@ -45,8 +45,10 @@ interface TopProduct {
 // ========== STOCK BADGE ==========
 function StockBadge({ product }: { product: Product }) {
   const { t } = useTranslation();
-  
-  if (product.stock_quantity === 0) {
+  const qty = Number(product.stock_quantity || 0);
+  const reorder = Number(product.reorder_level || 0);
+
+  if (qty === 0) {
     return (
       <span style={{
         background: '#fee2e2',
@@ -64,7 +66,7 @@ function StockBadge({ product }: { product: Product }) {
       </span>
     );
   }
-  if (product.stock_quantity <= product.reorder_level) {
+  if (qty <= reorder) {
     return (
       <span style={{
         background: '#fef3c7',
@@ -149,8 +151,10 @@ function ProductCard({
   const [isHovered, setIsHovered] = useState(false);
   const { t } = useTranslation();
   
-  const isOut = product.stock_quantity === 0;
-  const isLow = product.stock_quantity <= product.reorder_level && product.stock_quantity > 0;
+  const qty = Number(product.stock_quantity || 0);
+  const reorder = Number(product.reorder_level || 0);
+  const isOut = qty === 0;
+  const isLow = qty <= reorder && qty > 0;
 
   return (
     <div
@@ -192,7 +196,7 @@ function ProductCard({
             {t('stockLabel') || 'Stock'}
           </div>
           <div style={{ fontWeight: '600', fontSize: '1rem', color: COLORS.textPrimary }}>
-            {product.stock_quantity} {t('units') || 'units'}
+            {qty.toLocaleString()} {t('units') || 'units'}
           </div>
         </div>
         <div>
@@ -200,7 +204,7 @@ function ProductCard({
             {t('reorderLevel') || 'Reorder Level'}
           </div>
           <div style={{ fontWeight: '600', fontSize: '1rem', color: COLORS.textPrimary }}>
-            {product.reorder_level} {t('units') || 'units'}
+            {reorder.toLocaleString()} {t('units') || 'units'}
           </div>
         </div>
       </div>
@@ -263,7 +267,6 @@ export default function StockOverview() {
       setLoading(true);
       try {
         await fetchProducts();
-        // Try to get top products from dashboard API
         try {
           const topRes = await fetch('/api/dashboard/top-products', { headers: getAuthHeaders() });
           if (topRes.ok) {
@@ -317,15 +320,15 @@ export default function StockOverview() {
     }
   };
 
-  // Filter products by search
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     (p.category_name?.toLowerCase() || '').includes(search.toLowerCase())
   );
 
-  const lowStockCount = products.filter(p => p.stock_quantity <= p.reorder_level && p.stock_quantity > 0).length;
-  const outOfStockCount = products.filter(p => p.stock_quantity === 0).length;
-  const totalStockUnits = products.reduce((sum, p) => sum + p.stock_quantity, 0);
+  // ✅ FIXED: Force Number() conversion to avoid string concatenation
+  const lowStockCount = products.filter(p => Number(p.stock_quantity) <= Number(p.reorder_level) && Number(p.stock_quantity) > 0).length;
+  const outOfStockCount = products.filter(p => Number(p.stock_quantity) === 0).length;
+  const totalStockUnits = products.reduce((sum, p) => sum + Number(p.stock_quantity || 0), 0);
 
   if (loading) {
     return (
@@ -438,7 +441,7 @@ export default function StockOverview() {
           />
           <KpiCard
             title={t('totalStockUnits') || 'Total Stock Units'}
-            value={totalStockUnits}
+            value={totalStockUnits.toLocaleString()}
             icon={faChartLine}
             color={COLORS.primary}
           />
@@ -606,9 +609,9 @@ export default function StockOverview() {
                 {t('restockProduct') || 'Restock'} {restockProduct.name}
               </h3>
               <p style={{ fontSize: '0.85rem', color: COLORS.textSecondary, marginBottom: '1rem' }}>
-                {t('currentStock') || 'Current stock'}: <strong>{restockProduct.stock_quantity}</strong> {t('units') || 'units'}
+                {t('currentStock') || 'Current stock'}: <strong>{Number(restockProduct.stock_quantity).toLocaleString()}</strong> {t('units') || 'units'}
                 <br />
-                {t('reorderLevel') || 'Reorder Level'}: <strong>{restockProduct.reorder_level}</strong> {t('units') || 'units'}
+                {t('reorderLevel') || 'Reorder Level'}: <strong>{Number(restockProduct.reorder_level).toLocaleString()}</strong> {t('units') || 'units'}
               </p>
 
               <div style={{ marginBottom: '1rem' }}>
