@@ -1,11 +1,14 @@
 // src/components/settings/AccountSettings.tsx
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import Cropper from 'react-easy-crop';
+import type { Area } from 'react-easy-crop';
 import { getAuthHeaders } from '@/lib/auth-client';
+import { getCroppedImg } from '@/lib/cropImage';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faUser, faEnvelope, faPhone, faKey, faSave, faShieldAlt,
+  faUser, faKey, faSave, faShieldAlt,
   faQrcode, faCamera, faCheckCircle, faCopy, faEye, faEyeSlash,
-  faExclamationTriangle, faArrowLeft
+  faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -35,8 +38,14 @@ export default function AccountSettings() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ✅ NEW: state for avatar preview modal
+  // ✅ Avatar preview modal
   const [showAvatarPreview, setShowAvatarPreview] = useState(false);
+
+  // ✅ Crop state
+  const [cropImage, setCropImage] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   // Password change state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -98,70 +107,65 @@ export default function AccountSettings() {
     }
   };
 
-  // ✅ UPLOAD avatar (base64) — 2MB limit
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ✅ Step 1: User picks file → open crop modal
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      setError('Image must be under 2MB');
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image must be under 10MB');
+      setTimeout(() => setError(''), 4000);
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
       setTimeout(() => setError(''), 4000);
       return;
     }
 
-    setUploading(true);
-    setError('');
-    setMessage('');
-
     const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64 = reader.result as string;
-      try {
-        const res = await fetch('/api/user/upload-avatar', {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ image: base64 }),
-        });
-        const data = await res.json();
-        if (res.ok && data.avatar_url) {
-          setUser({ ...user, avatar: data.avatar_url });
-          setMessage('Profile picture updated');
-          setTimeout(() => setMessage(''), 3000);
-          // Broadcast to header
-          window.dispatchEvent(new CustomEvent('avatar-updated', { detail: data.avatar_url }));
-        } else {
-          throw new Error(data.error || 'Upload failed');
-        }
-      } catch (err: any) {
-        setError(err.message);
-        setTimeout(() => setError(''), 4000);
-      } finally {
-        setUploading(false);
-      }
+    reader.onloadend = () => {
+      setCropImage(reader.result as string);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
     };
     reader.readAsDataURL(file);
+    // Reset input so same file can be reselected later
+    e.target.value = '';
   };
 
-  // ✅ NEW: Remove avatar
-  const handleRemoveAvatar = async () => {
-    if (!confirm('Remove your profile picture?')) return;
+  const onCropComplete = useCallback((_area: Area, areaPixels: Area) => {
+    setCroppedAreaPixels(areaPixels);
+  }, []);
+
+  // ✅ Step 2: User confirms crop → upload cropped image
+  const handleCropSave = async () => {
+    if (!cropImage || !croppedAreaPixels) return;
     setUploading(true);
     setError('');
     setMessage('');
+
     try {
+      const croppedDataUrl = await getCroppedImg(cropImage, croppedAreaPixels, 400);
+
+      // Check size after crop (base64 length limit ~3M ≈ 2MB decoded)
+      if (croppedDataUrl.length > 3_000_000) {
+        throw new Error('Cropped image too large, please zoom in more');
+      }
+
       const res = await fetch('/api/user/upload-avatar', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ image: '' }),
+        body: JSON.stringify({ image: croppedDataUrl }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Remove failed');
-      }
-      setUser({ ...user, avatar: '' });
-      setMessage('Profile picture removed');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+      setUser({ ...user, avatar: data.avatar_url });
+      setMessage('Profile picture updated');
       setTimeout(() => setMessage(''), 3000);
-      window.dispatchEvent(new CustomEvent('avatar-updated', { detail: '' }));
+      window.dispatchEvent(new CustomEvent('avatar-updated', { detail: data.avatar_url }));
+      setCropImage(null);
     } catch (err: any) {
       setError(err.message);
       setTimeout(() => setError(''), 4000);
@@ -205,11 +209,9 @@ export default function AccountSettings() {
       setPasswordError(t('passwordMinLength') || 'Password must be at least 6 characters');
       return;
     }
-
     setPasswordLoading(true);
     setPasswordError('');
     setPasswordMessage('');
-
     try {
       const res = await fetch('/api/user/change-password', {
         method: 'POST',
@@ -399,41 +401,13 @@ export default function AccountSettings() {
             <FontAwesomeIcon icon={faCamera} />
           </button>
 
-          {/* Remove button (only when avatar exists) */}
-          {user.avatar && (
-            <button
-              onClick={handleRemoveAvatar}
-              style={{
-                position: 'absolute',
-                top: '5px', right: '5px',
-                background: COLORS.danger,
-                border: '2px solid white',
-                borderRadius: '50%',
-                width: '30px',
-                height: '30px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-                transition: 'all 0.2s',
-                fontSize: '1rem',
-                fontWeight: 'bold',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-              title="Remove photo"
-            >
-              ×
-            </button>
-          )}
+          {/* ✅ REMOVED the red × button */}
 
           {/* Hidden file input */}
           <input
             type="file"
             ref={fileInputRef}
-            onChange={handleImageUpload}
+            onChange={handleFileSelect}
             accept="image/*"
             style={{ display: 'none' }}
           />
@@ -482,15 +456,6 @@ export default function AccountSettings() {
                 border: `1px solid ${COLORS.border}`,
                 borderRadius: '8px',
                 fontSize: '0.9rem',
-                transition: 'all 0.2s',
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = COLORS.primary;
-                e.currentTarget.style.boxShadow = `0 0 0 3px ${COLORS.primary}20`;
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = COLORS.border;
-                e.currentTarget.style.boxShadow = 'none';
               }}
             />
           </div>
@@ -508,15 +473,6 @@ export default function AccountSettings() {
                 border: `1px solid ${COLORS.border}`,
                 borderRadius: '8px',
                 fontSize: '0.9rem',
-                transition: 'all 0.2s',
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = COLORS.primary;
-                e.currentTarget.style.boxShadow = `0 0 0 3px ${COLORS.primary}20`;
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = COLORS.border;
-                e.currentTarget.style.boxShadow = 'none';
               }}
             />
           </div>
@@ -534,15 +490,6 @@ export default function AccountSettings() {
                 border: `1px solid ${COLORS.border}`,
                 borderRadius: '8px',
                 fontSize: '0.9rem',
-                transition: 'all 0.2s',
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = COLORS.primary;
-                e.currentTarget.style.boxShadow = `0 0 0 3px ${COLORS.primary}20`;
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = COLORS.border;
-                e.currentTarget.style.boxShadow = 'none';
               }}
             />
           </div>
@@ -561,20 +508,7 @@ export default function AccountSettings() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                transition: 'all 0.2s',
                 opacity: saving ? 0.6 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!saving) {
-                  e.currentTarget.style.backgroundColor = COLORS.primaryDark;
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!saving) {
-                  e.currentTarget.style.backgroundColor = COLORS.primary;
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }
               }}
             >
               <FontAwesomeIcon icon={faSave} /> {saving ? (t('saving') || 'Saving...') : (t('saveChanges') || 'Save Changes')}
@@ -592,15 +526,6 @@ export default function AccountSettings() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = COLORS.primary;
-                e.currentTarget.style.color = COLORS.primary;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = COLORS.border;
-                e.currentTarget.style.color = COLORS.textSecondary;
               }}
             >
               <FontAwesomeIcon icon={faKey} /> {t('changePassword') || 'Change Password'}
@@ -654,18 +579,7 @@ export default function AccountSettings() {
                 cursor: twoFactorLoading ? 'not-allowed' : 'pointer',
                 color: 'white',
                 fontWeight: '500',
-                transition: 'all 0.2s',
                 opacity: twoFactorLoading ? 0.6 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!twoFactorLoading) {
-                  e.currentTarget.style.backgroundColor = COLORS.primaryDark;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!twoFactorLoading) {
-                  e.currentTarget.style.backgroundColor = COLORS.primary;
-                }
               }}
             >
               {twoFactorLoading ? 'Loading...' : 'Enable 2FA'}
@@ -682,18 +596,7 @@ export default function AccountSettings() {
                 cursor: twoFactorLoading ? 'not-allowed' : 'pointer',
                 color: 'white',
                 fontWeight: '500',
-                transition: 'all 0.2s',
                 opacity: twoFactorLoading ? 0.6 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!twoFactorLoading) {
-                  e.currentTarget.style.backgroundColor = '#dc2626';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!twoFactorLoading) {
-                  e.currentTarget.style.backgroundColor = COLORS.danger;
-                }
               }}
             >
               {twoFactorLoading ? 'Loading...' : 'Disable 2FA'}
@@ -715,8 +618,6 @@ export default function AccountSettings() {
             borderRadius: '16px',
             width: '450px',
             maxWidth: '90%',
-            boxShadow: COLORS.shadowHover,
-            animation: 'slideUp 0.3s ease',
           }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h3 style={{ margin: 0, color: COLORS.textPrimary }}>
@@ -726,24 +627,9 @@ export default function AccountSettings() {
               <button
                 onClick={() => setShowPasswordModal(false)}
                 style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer',
-                  color: COLORS.textMuted,
-                  transition: 'all 0.2s',
+                  background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: COLORS.textMuted,
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = COLORS.textPrimary;
-                  e.currentTarget.style.transform = 'rotate(90deg)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = COLORS.textMuted;
-                  e.currentTarget.style.transform = 'rotate(0)';
-                }}
-              >
-                ×
-              </button>
+              >×</button>
             </div>
 
             <form onSubmit={handlePasswordChange}>
@@ -753,7 +639,7 @@ export default function AccountSettings() {
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${COLORS.border}`, borderRadius: '8px', overflow: 'hidden' }}>
                   <input
-                    type={showCurrentPassword ? "text" : "password"}
+                    type={showCurrentPassword ? 'text' : 'password'}
                     value={passwordForm.currentPassword}
                     onChange={e => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                     required
@@ -774,7 +660,7 @@ export default function AccountSettings() {
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${COLORS.border}`, borderRadius: '8px', overflow: 'hidden' }}>
                   <input
-                    type={showNewPassword ? "text" : "password"}
+                    type={showNewPassword ? 'text' : 'password'}
                     value={passwordForm.newPassword}
                     onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                     required
@@ -809,19 +695,8 @@ export default function AccountSettings() {
                   type="button"
                   onClick={() => setShowPasswordModal(false)}
                   style={{
-                    padding: '8px 16px',
-                    background: COLORS.bgGray,
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    color: COLORS.textSecondary,
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = COLORS.border;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = COLORS.bgGray;
+                    padding: '8px 16px', background: COLORS.bgGray, border: `1px solid ${COLORS.border}`,
+                    borderRadius: '6px', cursor: 'pointer', color: COLORS.textSecondary,
                   }}
                 >
                   {t('cancel') || 'Cancel'}
@@ -830,25 +705,9 @@ export default function AccountSettings() {
                   type="submit"
                   disabled={passwordLoading}
                   style={{
-                    padding: '8px 16px',
-                    background: COLORS.primary,
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: passwordLoading ? 'not-allowed' : 'pointer',
-                    color: 'white',
-                    fontWeight: '500',
-                    transition: 'all 0.2s',
+                    padding: '8px 16px', background: COLORS.primary, border: 'none', borderRadius: '6px',
+                    cursor: passwordLoading ? 'not-allowed' : 'pointer', color: 'white', fontWeight: '500',
                     opacity: passwordLoading ? 0.6 : 1,
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!passwordLoading) {
-                      e.currentTarget.style.backgroundColor = COLORS.primaryDark;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!passwordLoading) {
-                      e.currentTarget.style.backgroundColor = COLORS.primary;
-                    }
                   }}
                 >
                   {passwordLoading ? (t('saving') || 'Saving...') : (t('update') || 'Update')}
@@ -867,46 +726,17 @@ export default function AccountSettings() {
           backdropFilter: 'blur(4px)',
         }} onClick={() => setShow2FAModal(false)}>
           <div style={{
-            background: 'white',
-            padding: '24px',
-            borderRadius: '16px',
-            width: '500px',
-            maxWidth: '90%',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: COLORS.shadowHover,
-            animation: 'slideUp 0.3s ease',
+            background: 'white', padding: '24px', borderRadius: '16px', width: '500px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto',
           }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h3 style={{ margin: 0, color: COLORS.textPrimary }}>
                 <FontAwesomeIcon icon={faQrcode} style={{ color: COLORS.primary, marginRight: '0.5rem' }} />
                 {t('setup2fa') || 'Set up Two-Factor Authentication'}
               </h3>
-              <button
-                onClick={() => setShow2FAModal(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer',
-                  color: COLORS.textMuted,
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = COLORS.textPrimary;
-                  e.currentTarget.style.transform = 'rotate(90deg)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = COLORS.textMuted;
-                  e.currentTarget.style.transform = 'rotate(0)';
-                }}
-              >
-                ×
-              </button>
+              <button onClick={() => setShow2FAModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: COLORS.textMuted }}>×</button>
             </div>
-
             <p style={{ color: COLORS.textSecondary, fontSize: '0.9rem' }}>
-              Scan the QR code with your authenticator app (Google Authenticator, Microsoft Authenticator, or Authy).
+              Scan the QR code with your authenticator app.
             </p>
             {twoFactorQrCode && (
               <div style={{ textAlign: 'center', margin: '1rem 0' }}>
@@ -914,53 +744,20 @@ export default function AccountSettings() {
               </div>
             )}
             <p style={{ fontWeight: '500', fontSize: '0.85rem', color: COLORS.textSecondary }}>Or enter this secret manually:</p>
-            <code style={{
-              display: 'block',
-              background: COLORS.bgGray,
-              padding: '8px 12px',
-              borderRadius: '6px',
-              wordBreak: 'break-all',
-              marginBottom: '1rem',
-              fontFamily: 'monospace',
-              fontSize: '0.85rem',
-            }}>{twoFactorSecret}</code>
+            <code style={{ display: 'block', background: COLORS.bgGray, padding: '8px 12px', borderRadius: '6px', wordBreak: 'break-all', marginBottom: '1rem', fontFamily: 'monospace', fontSize: '0.85rem' }}>{twoFactorSecret}</code>
             {backupCodes.length > 0 && (
               <>
                 <p style={{ fontWeight: '500', fontSize: '0.85rem', color: COLORS.textSecondary }}>
                   <FontAwesomeIcon icon={faCopy} style={{ marginRight: '0.5rem', color: COLORS.primary }} />
-                  Backup codes (save these somewhere safe):
+                  Backup codes:
                 </p>
-                <div style={{
-                  background: COLORS.bgGray,
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  marginBottom: '1rem',
-                  position: 'relative',
-                }}>
+                <div style={{ background: COLORS.bgGray, padding: '8px 12px', borderRadius: '6px', marginBottom: '1rem', position: 'relative' }}>
                   {backupCodes.map((code, i) => (
                     <div key={i} style={{ fontFamily: 'monospace', fontSize: '14px', padding: '2px 0' }}>{code}</div>
                   ))}
                   <button
                     onClick={copyBackupCodes}
-                    style={{
-                      position: 'absolute',
-                      top: '8px',
-                      right: '8px',
-                      background: COLORS.primary,
-                      border: 'none',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '11px',
-                      color: 'white',
-                      transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = COLORS.primaryDark;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = COLORS.primary;
-                    }}
+                    style={{ position: 'absolute', top: '8px', right: '8px', background: COLORS.primary, border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', color: 'white' }}
                   >
                     <FontAwesomeIcon icon={faCopy} /> {copied ? 'Copied!' : 'Copy'}
                   </button>
@@ -977,34 +774,11 @@ export default function AccountSettings() {
                 onChange={e => setVerificationCode(e.target.value)}
                 placeholder="000000"
                 maxLength={6}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: `1px solid ${COLORS.border}`,
-                  borderRadius: '8px',
-                  fontSize: '1rem',
-                  textAlign: 'center',
-                  transition: 'all 0.2s',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = COLORS.primary;
-                  e.currentTarget.style.boxShadow = `0 0 0 3px ${COLORS.primary}20`;
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = COLORS.border;
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+                style={{ width: '100%', padding: '10px 12px', border: `1px solid ${COLORS.border}`, borderRadius: '8px', fontSize: '1rem', textAlign: 'center' }}
               />
             </div>
             {twoFactorMessage && (
-              <div style={{
-                color: twoFactorMessage.includes('success') ? COLORS.success : COLORS.danger,
-                marginBottom: '1rem',
-                padding: '8px 12px',
-                background: twoFactorMessage.includes('success') ? '#d1fae5' : '#fee2e2',
-                borderRadius: '6px',
-                fontSize: '0.85rem',
-              }}>
+              <div style={{ color: twoFactorMessage.includes('success') ? COLORS.success : COLORS.danger, marginBottom: '1rem', padding: '8px 12px', background: twoFactorMessage.includes('success') ? '#d1fae5' : '#fee2e2', borderRadius: '6px', fontSize: '0.85rem' }}>
                 {twoFactorMessage}
               </div>
             )}
@@ -1012,21 +786,7 @@ export default function AccountSettings() {
               <button
                 type="button"
                 onClick={() => setShow2FAModal(false)}
-                style={{
-                  padding: '8px 16px',
-                  background: COLORS.bgGray,
-                  border: `1px solid ${COLORS.border}`,
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  color: COLORS.textSecondary,
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = COLORS.border;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = COLORS.bgGray;
-                }}
+                style={{ padding: '8px 16px', background: COLORS.bgGray, border: `1px solid ${COLORS.border}`, borderRadius: '6px', cursor: 'pointer', color: COLORS.textSecondary }}
               >
                 {t('cancel') || 'Cancel'}
               </button>
@@ -1034,27 +794,7 @@ export default function AccountSettings() {
                 type="button"
                 onClick={verifyTwoFactor}
                 disabled={twoFactorLoading}
-                style={{
-                  padding: '8px 16px',
-                  background: COLORS.primary,
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: twoFactorLoading ? 'not-allowed' : 'pointer',
-                  color: 'white',
-                  fontWeight: '500',
-                  transition: 'all 0.2s',
-                  opacity: twoFactorLoading ? 0.6 : 1,
-                }}
-                onMouseEnter={(e) => {
-                  if (!twoFactorLoading) {
-                    e.currentTarget.style.backgroundColor = COLORS.primaryDark;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!twoFactorLoading) {
-                    e.currentTarget.style.backgroundColor = COLORS.primary;
-                  }
-                }}
+                style={{ padding: '8px 16px', background: COLORS.primary, border: 'none', borderRadius: '6px', cursor: twoFactorLoading ? 'not-allowed' : 'pointer', color: 'white', fontWeight: '500', opacity: twoFactorLoading ? 0.6 : 1 }}
               >
                 {twoFactorLoading ? (t('verifying') || 'Verifying...') : (t('verifyAndEnable') || 'Verify & Enable')}
               </button>
@@ -1063,71 +803,120 @@ export default function AccountSettings() {
         </div>
       )}
 
-      {/* ✅ NEW: Full-size avatar preview modal */}
+      {/* ✅ Avatar Preview Modal (view full-size) */}
       {showAvatarPreview && user.avatar && (
         <div
           style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.9)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000,
-            cursor: 'zoom-out',
-            padding: '2rem',
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 10000, cursor: 'zoom-out', padding: '2rem',
           }}
           onClick={() => setShowAvatarPreview(false)}
         >
           <img
             src={user.avatar}
             alt="Profile Preview"
-            style={{
-              maxWidth: '85vw',
-              maxHeight: '85vh',
-              borderRadius: '12px',
-              boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
-            }}
+            style={{ maxWidth: '85vw', maxHeight: '85vh', borderRadius: '12px', boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }}
             onClick={(e) => e.stopPropagation()}
           />
           <button
             onClick={() => setShowAvatarPreview(false)}
             style={{
-              position: 'absolute',
-              top: '24px',
-              right: '24px',
-              background: 'white',
-              border: 'none',
-              borderRadius: '50%',
-              width: '48px',
-              height: '48px',
-              fontSize: '24px',
-              cursor: 'pointer',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-              transition: 'all 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#111827',
+              position: 'absolute', top: '24px', right: '24px', background: 'white', border: 'none', borderRadius: '50%',
+              width: '48px', height: '48px', fontSize: '24px', cursor: 'pointer',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#111827',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+          >×</button>
+        </div>
+      )}
+
+      {/* ✅ Crop Modal (after file select) */}
+      {cropImage && (
+        <div
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 10001, padding: '1rem',
+          }}
+        >
+          <div
+            style={{
+              background: 'white', borderRadius: '16px', overflow: 'hidden',
+              width: '90vw', maxWidth: '520px', display: 'flex', flexDirection: 'column',
+            }}
+            onClick={(e) => e.stopPropagation()}
           >
-            ×
-          </button>
+            {/* Crop header */}
+            <div style={{ padding: '1rem 1.25rem', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', color: COLORS.textPrimary }}>Adjust your photo</h3>
+              <button
+                onClick={() => setCropImage(null)}
+                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: COLORS.textMuted }}
+              >×</button>
+            </div>
+
+            {/* Crop area */}
+            <div style={{ position: 'relative', width: '100%', height: '400px', background: '#111' }}>
+              <Cropper
+                image={cropImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            </div>
+
+            {/* Zoom slider */}
+            <div style={{ padding: '1rem 1.25rem', borderTop: `1px solid ${COLORS.border}` }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', color: COLORS.textSecondary }}>
+                Zoom
+                <input
+                  type="range"
+                  min={1}
+                  max={3}
+                  step={0.01}
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  style={{ flex: 1, accentColor: COLORS.primary }}
+                />
+              </label>
+            </div>
+
+            {/* Actions */}
+            <div style={{ padding: '0 1.25rem 1.25rem', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setCropImage(null)}
+                style={{
+                  padding: '10px 18px', background: COLORS.bgGray, border: `1px solid ${COLORS.border}`,
+                  borderRadius: '8px', cursor: 'pointer', color: COLORS.textSecondary, fontWeight: '500',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCropSave}
+                disabled={uploading}
+                style={{
+                  padding: '10px 22px', background: COLORS.primary, border: 'none',
+                  borderRadius: '8px', cursor: uploading ? 'not-allowed' : 'pointer',
+                  color: 'white', fontWeight: '600', opacity: uploading ? 0.6 : 1,
+                }}
+              >
+                {uploading ? 'Saving...' : 'Save photo'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       <style jsx global>{`
         @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px) scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
+          from { opacity: 0; transform: translateY(20px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
         .loading-spinner {
           width: 40px;
