@@ -119,10 +119,13 @@ export default function SettingsPage() {
     { id: 'audit', label: t('auditLogs') || 'Audit Logs', icon: faHistory, roles: [ROLES.SUPERADMIN, ROLES.ADMIN], description: 'View system audit logs' },
   ];
 
-  // Filter tabs based on user role
-  const visibleTabs = allTabs.filter(
-    (tab) => userRole !== null && tab.roles.includes(userRole as any)
-  );
+const visibleTabs = allTabs.filter(
+  (tab) => 
+    userRole !== null && 
+    tab.roles.some((r: string) => 
+      String(r).toUpperCase() === String(userRole).toUpperCase()
+    )
+);
 
   // Set active tab from URL query or first visible tab
   useEffect(() => {
