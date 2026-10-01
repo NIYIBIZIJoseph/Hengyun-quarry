@@ -86,7 +86,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  
+  // ✅ NEW: avatar state
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
+
   const userMenuRef = useRef<HTMLDivElement>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -118,6 +120,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const token = localStorage.getItem("token");
     if (!token) router.push("/login");
   }, [router]);
+
+  // ✅ NEW: Load avatar from profile + listen for updates
+  useEffect(() => {
+    const loadAvatar = () => {
+      fetch('/api/user/profile', { headers: getAuthHeaders() })
+        .then((r) => r.json())
+        .then((d) => setAvatarUrl(d.avatar_url || d.profile_image || ''))
+        .catch(() => {});
+    };
+    loadAvatar();
+
+    const handler = (e: any) => setAvatarUrl(e.detail);
+    window.addEventListener('avatar-updated', handler);
+    return () => window.removeEventListener('avatar-updated', handler);
+  }, []);
 
   // Click outside handlers
   useEffect(() => {
@@ -345,7 +362,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </aside>
 
-      {/* ===== MAIN CONTENT - THIS IS THE SCROLLABLE CONTAINER ===== */}
+      {/* ===== MAIN CONTENT ===== */}
       <div
         id="main-content"
         style={{
@@ -364,7 +381,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           flexDirection: "column",
         }}
       >
-        {/* ===== HEADER - STICKY ===== */}
+        {/* ===== HEADER ===== */}
         <div
           style={{
             position: "sticky",
@@ -667,7 +684,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               )}
             </div>
 
-            {/* User Menu */}
+            {/* User Menu – NOW WITH AVATAR */}
             <div ref={userMenuRef} style={{ position: "relative" }}>
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -684,6 +701,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: "1.1rem",
+                  overflow: "hidden",
+                  padding: 0,
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = `${COLORS.primary}15`;
@@ -692,7 +711,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   e.currentTarget.style.backgroundColor = "transparent";
                 }}
               >
-                <FontAwesomeIcon icon={faUserCircle} />
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="Profile"
+                    style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+                  />
+                ) : (
+                  <FontAwesomeIcon icon={faUserCircle} />
+                )}
               </button>
               {userMenuOpen && (
                 <div
@@ -787,17 +814,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
 
-        {/* ===== PAGE CONTENT - NOW TALLER THAN VIEWPORT ===== */}
+        {/* ===== PAGE CONTENT ===== */}
         <div
           style={{
             flex: 1,
-            minHeight: "200vh", // ← THIS ENABLES SCROLLING
+            minHeight: "200vh",
           }}
         >
           {children}
         </div>
 
-        {/* ===== BACK TO TOP - INSIDE THE SCROLLABLE CONTAINER ===== */}
+        {/* ===== BACK TO TOP ===== */}
         <BackToTop />
       </div>
 
