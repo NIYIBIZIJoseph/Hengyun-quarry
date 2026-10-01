@@ -13,16 +13,24 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
   }
   try {
     const { image } = req.body as { image?: string };
+
     if (!image || !image.startsWith('data:image/')) {
       return res.status(400).json({ error: 'Only image files are allowed' });
     }
-   if (image.length > 6_000_000) {
-  return res.status(413).json({ error: 'Image too large (max 4MB)' });
-}
+
+    if (image.length > 6_000_000) {
+      return res.status(413).json({ error: 'Image too large (max 4MB)' });
+    }
+
+    // ✅ FIXED: explicit ::text cast resolves the "inconsistent types" error
     await pool.query(
-      `UPDATE users SET avatar_url = $1, profile_image = $1 WHERE id = $2`,
+      `UPDATE users 
+       SET avatar_url = $1::text, 
+           profile_image = $1::text 
+       WHERE id = $2`,
       [image, user.userId]
     );
+
     await logAudit({
       userId: user.userId,
       action: 'UPDATE_AVATAR',
@@ -31,6 +39,7 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
       ipAddress: (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress,
       userAgent: req.headers['user-agent'],
     });
+
     return res.status(200).json({ success: true, avatar_url: image });
   } catch (err: any) {
     console.error('Upload avatar error:', err);
