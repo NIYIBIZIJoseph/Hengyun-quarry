@@ -11,13 +11,33 @@ export default withAuth(async (req: NextApiRequest, res: NextApiResponse, user: 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
   try {
     const { image } = req.body as { image?: string };
 
-    if (!image || !image.startsWith('data:image/')) {
+    // ✅ Remove avatar (empty string)
+    if (image === '') {
+      await pool.query(
+        `UPDATE users SET avatar_url = NULL WHERE id = $1`,
+        [user.userId]
+      );
+      await logAudit({
+        userId: user.userId,
+        action: 'REMOVE_AVATAR',
+        targetType: 'user',
+        targetId: user.userId,
+        ipAddress: (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress,
+        userAgent: req.headers['user-agent'],
+      });
+      return res.status(200).json({ success: true, avatar_url: '' });
+    }
+
+    // ✅ Validate image data
+    if (!image || typeof image !== 'string' || !image.startsWith('data:image/')) {
       return res.status(400).json({ error: 'Only image files are allowed' });
     }
 
+    // ✅ Size check (~2MB after base64 decode)
     if (image.length > 3_000_000) {
       return res.status(413).json({ error: 'Image too large (max 2MB)' });
     }
