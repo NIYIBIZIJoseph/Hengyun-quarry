@@ -3,12 +3,11 @@ import { useEffect, useState } from 'react';
 import { getAuthHeaders } from '@/lib/auth-client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faSave, faPalette, faGlobe, faBell,
-  faCompressAlt, faCheckCircle, faExclamationTriangle, faLanguage, faSun
+  faSave, faPalette, faGlobe, faClock, faBell, faLanguage, faSun,
+  faCompressAlt, faExpandAlt, faCheckCircle, faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons';
 import { useTranslation } from '@/hooks/useTranslation';
 
-// ========== DESIGN TOKENS ==========
 const COLORS = {
   primary: "#f59e0b",
   primaryDark: "#d97706",
@@ -21,34 +20,19 @@ const COLORS = {
   bgGray: "#f9fafb",
   border: "#e5e7eb",
   shadow: "0 1px 3px rgba(0,0,0,0.06)",
-  shadowHover: "0 8px 25px rgba(0,0,0,0.08)",
 };
 
-function PreferenceRow({
-  label, value, options, onChange, saving, icon,
-}: {
-  label: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
-  saving: boolean;
-  icon?: any;
-}) {
+function PreferenceRow({ label, value, options, onChange, saving, icon }: any) {
   const [isHovered, setIsHovered] = useState(false);
-
   return (
     <div
-      style={{
-        marginBottom: '1.25rem',
-        paddingBottom: '1.25rem',
-        borderBottom: `1px solid ${COLORS.border}`,
-      }}
+      style={{ marginBottom: '1.25rem', paddingBottom: '1.25rem', borderBottom: `1px solid ${COLORS.border}` }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
         {icon && <FontAwesomeIcon icon={icon} style={{ color: COLORS.primary, fontSize: '0.8rem' }} />}
-        <label style={{ fontWeight: '500', fontSize: '0.85rem', color: COLORS.textPrimary }}>{label}</label>
+        <label style={{ fontWeight: 500, fontSize: '0.85rem', color: COLORS.textPrimary }}>{label}</label>
       </div>
       <select
         value={value}
@@ -61,11 +45,10 @@ function PreferenceRow({
           borderRadius: '8px',
           fontSize: '0.9rem',
           background: 'white',
-          transition: 'all 0.2s',
           opacity: saving ? 0.6 : 1,
         }}
       >
-        {options.map(opt => (
+        {options.map((opt: any) => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
@@ -97,18 +80,13 @@ export default function UIPreferencesSettings() {
     }
   };
 
-  useEffect(() => {
-    fetchPrefs();
-  }, []);
+  useEffect(() => { fetchPrefs(); }, []);
 
   const updatePref = async (key: string, value: any) => {
-    setSaving(true);
-    setError('');
-    setMessage('');
+    setSaving(true); setError(''); setMessage('');
 
-    // Normalize value based on key
-    let payload: Record<string, any> = {};
-    if (key === 'compact_mode' || key === 'notifications_enabled') {
+    let payload: any = {};
+    if (key === 'compact_mode' || key === 'notifications_enabled' || key === 'sidebar_collapsed' || key === 'notifications_sound') {
       payload[key] = value === 'true';
     } else {
       payload[key] = value;
@@ -121,11 +99,9 @@ export default function UIPreferencesSettings() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error('Update failed');
-
       setPrefs(prev => ({ ...prev, ...payload }));
-      setMessage(t('preferenceSaved') || 'Preference saved successfully');
+      setMessage(t('preferenceSaved') || 'Preference saved');
       setTimeout(() => setMessage(''), 3000);
-
       applyPreference(key, value);
     } catch (err: any) {
       setError(err.message);
@@ -140,19 +116,16 @@ export default function UIPreferencesSettings() {
         if (value === 'dark') {
           document.documentElement.setAttribute('data-theme', 'dark');
           document.documentElement.style.colorScheme = 'dark';
-          document.body.classList.add('dark-theme');
         } else if (value === 'light') {
           document.documentElement.setAttribute('data-theme', 'light');
           document.documentElement.style.colorScheme = 'light';
-          document.body.classList.remove('dark-theme');
         } else if (value === 'system') {
-          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-          document.documentElement.style.colorScheme = prefersDark ? 'dark' : 'light';
-          if (prefersDark) document.body.classList.add('dark-theme');
-          else document.body.classList.remove('dark-theme');
+          const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
         }
         break;
+      case 'language':
       case 'locale':
         localStorage.setItem('preferred_language', value);
         window.location.reload();
@@ -161,22 +134,25 @@ export default function UIPreferencesSettings() {
         if (value === 'true') document.body.classList.add('compact-mode');
         else document.body.classList.remove('compact-mode');
         break;
-      case 'notifications_enabled':
-        localStorage.setItem('notifications_enabled', value);
+      case 'sidebar_collapsed':
+        window.dispatchEvent(new CustomEvent('sidebar-preference', { detail: value === 'true' }));
+        break;
+      case 'notifications_sound':
+        localStorage.setItem('notifications_sound', value);
         break;
     }
   };
 
-  const getValue = (key: string, defaultValue: string) => {
+  const getValue = (key: string, def: string) => {
     const v = prefs[key];
-    if (v === undefined || v === null) return defaultValue;
+    if (v === undefined || v === null) return def;
     return String(v);
   };
 
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
-        <div className="loading-spinner"></div>
+        <div className="loading-spinner" />
       </div>
     );
   }
@@ -184,7 +160,7 @@ export default function UIPreferencesSettings() {
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
       <div style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.1rem', fontWeight: '600', color: COLORS.textPrimary, margin: 0 }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: COLORS.textPrimary, margin: 0 }}>
           <FontAwesomeIcon icon={faPalette} style={{ color: COLORS.primary, marginRight: '0.5rem' }} />
           {t('uiPreferences') || 'UI Preferences'}
         </h2>
@@ -213,22 +189,34 @@ export default function UIPreferencesSettings() {
             { value: 'dark', label: '🌙 Dark' },
             { value: 'system', label: '💻 System default' },
           ]}
-          onChange={(val) => updatePref('theme', val)}
+          onChange={(v: string) => updatePref('theme', v)}
           saving={saving}
           icon={faSun}
         />
 
         <PreferenceRow
           label={t('language') || 'Language'}
-          value={getValue('locale', 'en')}
+          value={getValue('language', 'en')}
           options={[
             { value: 'en', label: '🇬🇧 English' },
             { value: 'rw', label: '🇷🇼 Kinyarwanda' },
             { value: 'zh', label: '🇨🇳 中文' },
           ]}
-          onChange={(val) => updatePref('locale', val)}
+          onChange={(v: string) => updatePref('language', v)}
           saving={saving}
           icon={faLanguage}
+        />
+
+        <PreferenceRow
+          label={t('sidebarBehaviour') || 'Sidebar Behaviour'}
+          value={getValue('sidebar_collapsed', 'false')}
+          options={[
+            { value: 'false', label: '📖 Expanded by default' },
+            { value: 'true', label: '📕 Collapsed by default' },
+          ]}
+          onChange={(v: string) => updatePref('sidebar_collapsed', v)}
+          saving={saving}
+          icon={faCompressAlt}
         />
 
         <PreferenceRow
@@ -238,19 +226,62 @@ export default function UIPreferencesSettings() {
             { value: 'false', label: '❌ Disabled' },
             { value: 'true', label: '✅ Enabled (reduces whitespace)' },
           ]}
-          onChange={(val) => updatePref('compact_mode', val)}
+          onChange={(v: string) => updatePref('compact_mode', v)}
           saving={saving}
-          icon={faCompressAlt}
+          icon={faExpandAlt}
         />
 
         <PreferenceRow
-          label={t('notificationsSound') || 'Notifications'}
-          value={getValue('notifications_enabled', 'true')}
+          label={t('defaultDashboardView') || 'Default Dashboard View'}
+          value={getValue('default_dashboard', '/dashboard')}
+          options={[
+            { value: '/dashboard', label: '📊 Overview' },
+            { value: '/dashboard/orders', label: '📦 Orders' },
+            { value: '/dashboard/workers', label: '👷 Workers' },
+            { value: '/dashboard/attendance/weekly', label: '⏰ Attendance' },
+            { value: '/dashboard/inventory', label: '📦 Inventory' },
+            { value: '/dashboard/analytics', label: '📈 Analytics' },
+            { value: '/dashboard/support', label: '🎫 Support' },
+            { value: '/dashboard/settings', label: '⚙️ Settings' },
+          ]}
+          onChange={(v: string) => updatePref('default_dashboard', v)}
+          saving={saving}
+          icon={faGlobe}
+        />
+
+        <PreferenceRow
+          label={t('dateFormat') || 'Date Format'}
+          value={getValue('date_format', 'DD/MM/YYYY')}
+          options={[
+            { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
+            { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+            { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
+          ]}
+          onChange={(v: string) => updatePref('date_format', v)}
+          saving={saving}
+          icon={faClock}
+        />
+
+        <PreferenceRow
+          label={t('timeFormat') || 'Time Format'}
+          value={getValue('time_format', '24h')}
+          options={[
+            { value: '12h', label: '12‑hour (AM/PM)' },
+            { value: '24h', label: '24‑hour' },
+          ]}
+          onChange={(v: string) => updatePref('time_format', v)}
+          saving={saving}
+          icon={faClock}
+        />
+
+        <PreferenceRow
+          label={t('notificationsSound') || 'Notifications Sound'}
+          value={getValue('notifications_sound', 'true')}
           options={[
             { value: 'true', label: '🔔 Enabled' },
             { value: 'false', label: '🔕 Disabled' },
           ]}
-          onChange={(val) => updatePref('notifications_enabled', val)}
+          onChange={(v: string) => updatePref('notifications_sound', v)}
           saving={saving}
           icon={faBell}
         />
