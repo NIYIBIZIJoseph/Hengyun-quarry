@@ -99,13 +99,16 @@ export default function AccountSettings() {
   const file = e.target.files?.[0];
   if (!file) return;
 
-  if (file.size > 4 * 1024 * 1024) {
-  setError('Image must be under 4MB');
+  if (file.size > 2 * 1024 * 1024) {
+    setError('Image must be under 2MB');
     setTimeout(() => setError(''), 4000);
     return;
   }
 
   setUploading(true);
+  setError('');
+  setMessage('');
+
   const reader = new FileReader();
   reader.onloadend = async () => {
     const base64 = reader.result as string;
@@ -120,7 +123,6 @@ export default function AccountSettings() {
         setUser({ ...user, avatar: data.avatar_url });
         setMessage('Profile picture updated');
         setTimeout(() => setMessage(''), 3000);
-        // Notify header to refresh
         window.dispatchEvent(new CustomEvent('avatar-updated', { detail: data.avatar_url }));
       } else {
         throw new Error(data.error || 'Upload failed');
