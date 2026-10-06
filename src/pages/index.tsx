@@ -466,14 +466,14 @@ export default function Home() {
           <p className="section-subtitle">{t.productsDesc}</p>
           <div className="product-grid">
             {[
-              { img: "/products/product1.jpg", title: t.aggregatesTitle, desc: t.aggregatesDesc },
-              { img: "/products/product2.jpg", title: t.sandTitle, desc: t.sandDesc },
-              { img: "/products/product3.jpg", title: t.otherSandTitle, desc: t.otherSandDesc },
-              { img: "/products/product4.jpg", title: t.quarryDustTitle, desc: t.quarryDustDesc },
-              { img: "/products/product5.jpg", title: t.ballastTitle, desc: t.ballastDesc },
-              { img: "/products/product6.jpg", title: t.crusherRunTitle, desc: t.crusherRunDesc },
-              { img: "/products/product7.jpg", title: t.roadBaseTitle, desc: t.roadBaseDesc },
-              { img: "/products/product8.jpg", title: t.fillMaterialTitle, desc: t.fillMaterialDesc },
+              { img: "/products/aggregates2.jpg", title: t.aggregatesTitle, desc: t.aggregatesDesc },
+              { img: "/products/sand2.jpg", title: t.sandTitle, desc: t.sandDesc },
+              { img: "/products/othersand2.jpg", title: t.otherSandTitle, desc: t.otherSandDesc },
+              { img: "/products/quarrydust2.jpg", title: t.quarryDustTitle, desc: t.quarryDustDesc },
+              { img: "/products/ballast2.jpg", title: t.ballastTitle, desc: t.ballastDesc },
+              { img: "/products/crusherrun2.jpg", title: t.crusherRunTitle, desc: t.crusherRunDesc },
+              { img: "/products/roadbase2.jpg", title: t.roadBaseTitle, desc: t.roadBaseDesc },
+              { img: "/products/fillmaterial2.jpg", title: t.fillMaterialTitle, desc: t.fillMaterialDesc },
             ].map((product, idx) => (
               <div key={idx} className="card-hover" style={{ backgroundColor: COLORS.bgWhite, borderRadius: "12px", overflow: "hidden", boxShadow: COLORS.shadow }}>
                 <div className="image-hover-container" onClick={() => openModal(product.img, product.title)} style={{ height: "220px" }}>
