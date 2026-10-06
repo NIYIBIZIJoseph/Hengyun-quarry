@@ -15,10 +15,14 @@ import '../styles/responsive.css';
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  const isPublic = !router.pathname.startsWith('/dashboard');
+
+  // ✅ Public vs dashboard split
+  const isDashboard = router.pathname.startsWith('/dashboard');
+  const isPublic = !isDashboard;
+
   const [loading, setLoading] = useState(false);
 
-  // ✅ NEW: Loading spinner on route changes
+  // ✅ Loading spinner on route changes
   useEffect(() => {
     const handleStart = () => setLoading(true);
     const handleComplete = () => setLoading(false);
@@ -32,13 +36,24 @@ export default function App({ Component, pageProps }: AppProps) {
     };
   }, [router]);
 
-  // Apply user preferences (theme, compact mode)
+  // ✅ Apply user preferences — ONLY on dashboard pages
   useEffect(() => {
+    if (!isDashboard) return;          // ← skip on all public pages
+    const token = localStorage.getItem('token');
+    if (!token) return;                 // ← skip if not logged in
+
     const applyPreferences = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
       try {
         const res = await fetch('/api/user/preferences', { headers: getAuthHeaders() });
+
+        // 401 = expired/invalid token → clear it, stop retrying
+        if (res.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          document.cookie = 'token=; path=/; max-age=0';
+          return;
+        }
+
         if (res.ok) {
           const prefs = await res.json();
           document.documentElement.setAttribute('data-theme', prefs.theme || 'light');
@@ -49,13 +64,14 @@ export default function App({ Component, pageProps }: AppProps) {
           }
         }
       } catch (err) {
-        console.error(err);
+        // Silent fail — no console spam
       }
     };
-    applyPreferences();
-  }, []);
 
-  // Maintenance mode check
+    applyPreferences();
+  }, [isDashboard, router.pathname]);
+
+  // ✅ Maintenance mode check — public-safe endpoint
   useEffect(() => {
     const checkMaintenance = async () => {
       try {
@@ -68,7 +84,7 @@ export default function App({ Component, pageProps }: AppProps) {
           }
         }
       } catch (err) {
-        console.error('Maintenance check error:', err);
+        // Silent fail
       }
     };
     checkMaintenance();
