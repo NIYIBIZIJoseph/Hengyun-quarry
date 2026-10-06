@@ -169,16 +169,13 @@ const globalStyles = `
   }
 `;
 
-// ========== IMAGE MODAL (matching the UI from your screenshot) ==========
+// ========== IMAGE MODAL ==========
 function ImageModal({ imageUrl, alt, onClose }: { imageUrl: string; alt: string; onClose: () => void }) {
   return (
     <div
       style={{
         position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        top: 0, left: 0, right: 0, bottom: 0,
         backgroundColor: "rgba(0,0,0,0.92)",
         display: "flex",
         alignItems: "center",
@@ -211,7 +208,6 @@ function ImageModal({ imageUrl, alt, onClose }: { imageUrl: string; alt: string;
             boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
           }}
         />
-        {/* Close button – large, clean, top‑right */}
         <button
           onClick={onClose}
           style={{
@@ -259,23 +255,24 @@ export default function Home() {
   const [facilitySlide, setFacilitySlide] = useState(0);
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [modalAlt, setModalAlt] = useState<string>("");
+  const [textVisible, setTextVisible] = useState(false);
 
-  // Hero slides
+  // ✅ HERO SLIDES — now using VIDEOS
   const slides = [
     {
-      image: "/homeslide/slide1imageofcrusher.jpg",
+      video: "/homeslide/slide1video.mp4",
       heading: t.slide1Heading,
       paragraph: t.slide1Paragraph,
       button: "contact",
     },
     {
-      image: "/homeslide/slide2image.jpg",
+      video: "/homeslide/slide2video.mp4",
       heading: t.slide2Heading,
       paragraph: t.slide2Paragraph,
       button: "services",
     },
     {
-      image: "/homeslide/slide3image.jpg",
+      video: "/homeslide/slide3video.mp4",
       heading: t.slide3Heading,
       paragraph: "",
       button: "none",
@@ -291,13 +288,20 @@ export default function Home() {
     "/operations/facility6.jpg",
   ];
 
-  // Auto‑slide hero
+  // Auto-slide hero every 10s
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 10000);
     return () => clearInterval(interval);
   }, [slides.length]);
+
+  // ✅ Text fades in 2s after slide changes
+  useEffect(() => {
+    setTextVisible(false);
+    const timer = setTimeout(() => setTextVisible(true), 2000);
+    return () => clearTimeout(timer);
+  }, [currentSlide]);
 
   useEffect(() => {
     if (window.location.hash) {
@@ -324,53 +328,175 @@ export default function Home() {
       {/* Image Modal */}
       {modalImage && <ImageModal imageUrl={modalImage} alt={modalAlt} onClose={() => setModalImage(null)} />}
 
-      {/* ========== HERO CAROUSEL – FULL VIEWPORT ========== */}
+      {/* ========== HERO CAROUSEL WITH VIDEOS ========== */}
       <div className="hero-carousel">
-        {slides.map((slide, index) => (
-          <div
-            key={index}
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              transition: "opacity 0.6s ease-in-out",
-              opacity: index === currentSlide ? 1 : 0,
-              zIndex: index === currentSlide ? 2 : 1,
-              backgroundImage: `url(${slide.image})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-          >
-            <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.55)", zIndex: 1 }} />
-            <div style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              textAlign: "center",
-              color: "white",
-              zIndex: 2,
-              width: "80%",
-              maxWidth: "800px",
-            }}>
-              {slide.heading && <h1 style={{ fontSize: "3rem", marginBottom: "1rem", fontWeight: "700" }}>{slide.heading}</h1>}
-              {slide.paragraph && <p style={{ fontSize: "1.3rem", marginBottom: "1.5rem" }}>{slide.paragraph}</p>}
-              {slide.button === "contact" && (
-                <Link href="/contact" style={{ backgroundColor: "transparent", color: "#f59e0b", border: "2px solid #f59e0b", padding: "0.75rem 1.5rem", borderRadius: "8px", textDecoration: "none", fontWeight: "bold", display: "inline-block" }}>{t.contactButton}</Link>
-              )}
-              {slide.button === "services" && (
-                <Link href="#services-section" style={{ backgroundColor: "transparent", color: "#f59e0b", border: "2px solid #f59e0b", padding: "0.75rem 1.5rem", borderRadius: "8px", textDecoration: "none", fontWeight: "bold", display: "inline-block" }}>{t.servicesButton}</Link>
-              )}
+        {slides.map((slide, index) => {
+          const isActive = index === currentSlide;
+          return (
+            <div
+              key={index}
+              style={{
+                position: "absolute",
+                top: 0, left: 0,
+                width: "100%", height: "100%",
+                opacity: isActive ? 1 : 0,
+                zIndex: isActive ? 2 : 1,
+                transition: "opacity 0.8s ease-in-out",
+                overflow: "hidden",
+              }}
+            >
+              {/* Video background */}
+              <video
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  minWidth: "100%",
+                  minHeight: "100%",
+                  objectFit: "cover",
+                }}
+              >
+                <source src={slide.video} type="video/mp4" />
+              </video>
+
+              {/* Dark overlay for text readability */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0, left: 0,
+                  width: "100%", height: "100%",
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  zIndex: 1,
+                }}
+              />
+
+              {/* Text — fades in after 2s on active slide */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  textAlign: "center",
+                  color: "white",
+                  zIndex: 2,
+                  width: "80%",
+                  maxWidth: "800px",
+                  opacity: isActive && textVisible ? 1 : 0,
+                  transition: "opacity 1.2s ease-in-out",
+                }}
+              >
+                {slide.heading && (
+                  <h1 style={{ fontSize: "3rem", marginBottom: "1rem", fontWeight: "700" }}>
+                    {slide.heading}
+                  </h1>
+                )}
+                {slide.paragraph && (
+                  <p style={{ fontSize: "1.3rem", marginBottom: "1.5rem" }}>{slide.paragraph}</p>
+                )}
+                {slide.button === "contact" && (
+                  <Link
+                    href="/contact"
+                    style={{
+                      backgroundColor: "transparent",
+                      color: "#f59e0b",
+                      border: "2px solid #f59e0b",
+                      padding: "0.75rem 1.5rem",
+                      borderRadius: "8px",
+                      textDecoration: "none",
+                      fontWeight: "bold",
+                      display: "inline-block",
+                    }}
+                  >
+                    {t.contactButton}
+                  </Link>
+                )}
+                {slide.button === "services" && (
+                  <Link
+                    href="#services-section"
+                    style={{
+                      backgroundColor: "transparent",
+                      color: "#f59e0b",
+                      border: "2px solid #f59e0b",
+                      padding: "0.75rem 1.5rem",
+                      borderRadius: "8px",
+                      textDecoration: "none",
+                      fontWeight: "bold",
+                      display: "inline-block",
+                    }}
+                  >
+                    {t.servicesButton}
+                  </Link>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-        <button onClick={prevSlide} style={{ position: "absolute", top: "50%", left: "20px", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", color: "white", border: "none", fontSize: "2rem", padding: "0.5rem 1.2rem", cursor: "pointer", zIndex: 10, borderRadius: "8px" }}>❮</button>
-        <button onClick={nextSlide} style={{ position: "absolute", top: "50%", right: "20px", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", color: "white", border: "none", fontSize: "2rem", padding: "0.5rem 1.2rem", cursor: "pointer", zIndex: 10, borderRadius: "8px" }}>❯</button>
-        <div style={{ position: "absolute", bottom: "30px", left: "50%", transform: "translateX(-50%)", display: "flex", gap: "12px", zIndex: 10 }}>
+          );
+        })}
+
+        {/* Arrows */}
+        <button
+          onClick={prevSlide}
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "20px",
+            transform: "translateY(-50%)",
+            background: "rgba(0,0,0,0.5)",
+            color: "white",
+            border: "none",
+            fontSize: "2rem",
+            padding: "0.5rem 1.2rem",
+            cursor: "pointer",
+            zIndex: 10,
+            borderRadius: "8px",
+          }}
+        >
+          ❮
+        </button>
+        <button
+          onClick={nextSlide}
+          style={{
+            position: "absolute",
+            top: "50%",
+            right: "20px",
+            transform: "translateY(-50%)",
+            background: "rgba(0,0,0,0.5)",
+            color: "white",
+            border: "none",
+            fontSize: "2rem",
+            padding: "0.5rem 1.2rem",
+            cursor: "pointer",
+            zIndex: 10,
+            borderRadius: "8px",
+          }}
+        >
+          ❯
+        </button>
+
+        {/* Dots */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: "30px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            display: "flex",
+            gap: "12px",
+            zIndex: 10,
+          }}
+        >
           {slides.map((_, idx) => (
-            <span key={idx} onClick={() => setCurrentSlide(idx)} className={`carousel-dot ${idx === currentSlide ? "active" : ""}`} />
+            <span
+              key={idx}
+              onClick={() => setCurrentSlide(idx)}
+              className={`carousel-dot ${idx === currentSlide ? "active" : ""}`}
+            />
           ))}
         </div>
       </div>
@@ -491,7 +617,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ========== THREE‑COLUMN FOOTER ========== */}
+      {/* ========== THREE-COLUMN FOOTER ========== */}
       <section id="services-section" style={{ padding: "4rem 2rem", backgroundColor: "#2d3748" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "2rem", alignItems: "start" }}>
           <div style={{ textAlign: "left" }}>
