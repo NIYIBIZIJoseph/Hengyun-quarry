@@ -54,6 +54,17 @@ export default function PublicHeader() {
     { code: "zh", label: "中文" },
   ];
 
+  // ✅ Universal language changer — works from desktop + mobile
+  const changeLanguage = (code: string) => {
+    setLocale(code as any);
+    setLangOpen(false);
+    setMenuOpen(false);
+    // Reload so the entire app picks up the new locale
+    setTimeout(() => {
+      window.location.reload();
+    }, 150);
+  };
+
   return (
     <>
       <header style={{
@@ -151,7 +162,7 @@ export default function PublicHeader() {
                 {languages.map(l => (
                   <button
                     key={l.code}
-                    onClick={() => { setLocale(l.code as any); setLangOpen(false); }}
+                    onClick={() => changeLanguage(l.code)}
                     style={{
                       display: "block", width: "100%",
                       padding: "0.5rem 0.75rem",
@@ -311,7 +322,7 @@ export default function PublicHeader() {
                     {languages.map(l => (
                       <button
                         key={l.code}
-                        onClick={() => setLocale(l.code as any)}
+                        onClick={() => changeLanguage(l.code)}
                         style={{
                           display: "flex",
                           alignItems: "center",
