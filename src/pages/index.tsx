@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -25,7 +25,6 @@ const COLORS = {
 
 // ========== GLOBAL STYLES ==========
 const globalStyles = `
-  /* Image hover overlay (zoom) */
   .image-hover-container {
     position: relative;
     overflow: hidden;
@@ -42,10 +41,8 @@ const globalStyles = `
   }
   .image-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
     background-color: rgba(245, 158, 11, 0.7);
     display: flex;
     align-items: center;
@@ -67,8 +64,6 @@ const globalStyles = `
   .image-hover-container:hover .zoom-icon {
     transform: scale(1.1);
   }
-
-  /* Card hover effects */
   .card-hover {
     transition: transform 0.2s, box-shadow 0.2s;
   }
@@ -76,8 +71,6 @@ const globalStyles = `
     transform: translateY(-5px);
     box-shadow: ${COLORS.shadowHover};
   }
-
-  /* Product grid – 2 columns on small screens */
   .product-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -85,9 +78,7 @@ const globalStyles = `
     margin-bottom: 2rem;
   }
   @media (max-width: 1024px) {
-    .product-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
+    .product-grid { grid-template-columns: repeat(3, 1fr); }
   }
   @media (max-width: 640px) {
     .product-grid {
@@ -95,8 +86,6 @@ const globalStyles = `
       gap: 1rem;
     }
   }
-
-  /* Carousel dots */
   .carousel-dot {
     width: 12px;
     height: 12px;
@@ -108,8 +97,6 @@ const globalStyles = `
   .carousel-dot.active {
     background: ${COLORS.primary};
   }
-
-  /* Section titles */
   .section-title {
     font-size: 2.2rem !important;
     font-weight: 700 !important;
@@ -137,10 +124,7 @@ const globalStyles = `
     line-height: 1.5;
     padding: 0 1rem 1rem;
   }
-  .service-text {
-    font-size: 1rem !important;
-  }
-
+  .service-text { font-size: 1rem !important; }
   .btn-primary {
     background-color: ${COLORS.primary};
     color: white;
@@ -158,14 +142,27 @@ const globalStyles = `
     transform: translateY(-2px);
     box-shadow: ${COLORS.shadowHover};
   }
-
-  /* Hero carousel full viewport */
   .hero-carousel {
     height: 100vh !important;
     min-height: 600px;
     width: 100%;
     position: relative;
     overflow: hidden;
+  }
+
+  /* ✅ Staged text animations */
+  @keyframes hyFadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hy-anim-heading {
+    animation: hyFadeUp 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  .hy-anim-paragraph {
+    animation: hyFadeUp 0.9s cubic-bezier(0.4, 0, 0.2, 1) 0.7s both;
+  }
+  .hy-anim-button {
+    animation: hyFadeUp 0.9s cubic-bezier(0.4, 0, 0.2, 1) 1.4s both;
   }
 `;
 
@@ -255,9 +252,11 @@ export default function Home() {
   const [facilitySlide, setFacilitySlide] = useState(0);
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [modalAlt, setModalAlt] = useState<string>("");
-  const [textVisible, setTextVisible] = useState(false);
 
-  // ✅ HERO SLIDES — now using VIDEOS
+  // ✅ Video refs for each slide
+  const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
+
+  // Hero slides — videos
   const slides = [
     {
       video: "/homeslide/slide1video.mp4",
@@ -288,19 +287,23 @@ export default function Home() {
     "/operations/facility6.jpg",
   ];
 
-  // Auto-slide hero every 10s
+  // ✅ When slide changes → play active video from start
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [slides.length]);
-
-  // ✅ Text fades in 2s after slide changes
-  useEffect(() => {
-    setTextVisible(false);
-    const timer = setTimeout(() => setTextVisible(true), 2000);
-    return () => clearTimeout(timer);
+    videoRefs.current.forEach((v, idx) => {
+      if (!v) return;
+      if (idx === currentSlide) {
+        v.currentTime = 0;
+        const playPromise = v.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            // Autoplay blocked — muted usually works, retry on next user action
+          });
+        }
+      } else {
+        v.pause();
+        v.currentTime = 0;
+      }
+    });
   }, [currentSlide]);
 
   useEffect(() => {
@@ -310,8 +313,9 @@ export default function Home() {
     }
   }, []);
 
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length);
-  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  const goTo = (i: number) => setCurrentSlide((i + slides.length) % slides.length);
+  const nextSlide = () => goTo(currentSlide + 1);
+  const prevSlide = () => goTo(currentSlide - 1);
   const nextFacility = () => setFacilitySlide((prev) => (prev + 1) % facilityImages.length);
   const prevFacility = () => setFacilitySlide((prev) => (prev - 1 + facilityImages.length) % facilityImages.length);
 
@@ -325,13 +329,14 @@ export default function Home() {
       <style>{globalStyles}</style>
       <PublicHeader />
 
-      {/* Image Modal */}
       {modalImage && <ImageModal imageUrl={modalImage} alt={modalAlt} onClose={() => setModalImage(null)} />}
 
       {/* ========== HERO CAROUSEL WITH VIDEOS ========== */}
       <div className="hero-carousel">
         {slides.map((slide, index) => {
           const isActive = index === currentSlide;
+          // Reset text animations each time a slide becomes active
+          const slideKey = `${index}-${isActive ? 'active' : 'idle'}`;
           return (
             <div
               key={index}
@@ -345,13 +350,14 @@ export default function Home() {
                 overflow: "hidden",
               }}
             >
-              {/* Video background */}
+              {/* Video — plays once, advances on end */}
               <video
-                autoPlay
+                ref={(el) => { videoRefs.current[index] = el; }}
+                autoPlay={isActive}
                 muted
-                loop
                 playsInline
                 preload="auto"
+                onEnded={nextSlide}
                 style={{
                   position: "absolute",
                   top: "50%",
@@ -365,7 +371,7 @@ export default function Home() {
                 <source src={slide.video} type="video/mp4" />
               </video>
 
-              {/* Dark overlay for text readability */}
+              {/* Dark overlay */}
               <div
                 style={{
                   position: "absolute",
@@ -376,8 +382,9 @@ export default function Home() {
                 }}
               />
 
-              {/* Text — fades in after 2s on active slide */}
+              {/* Text — staged animations */}
               <div
+                key={slideKey}
                 style={{
                   position: "absolute",
                   top: "50%",
@@ -388,21 +395,22 @@ export default function Home() {
                   zIndex: 2,
                   width: "80%",
                   maxWidth: "800px",
-                  opacity: isActive && textVisible ? 1 : 0,
-                  transition: "opacity 1.2s ease-in-out",
                 }}
               >
-                {slide.heading && (
-                  <h1 style={{ fontSize: "3rem", marginBottom: "1rem", fontWeight: "700" }}>
+                {slide.heading && isActive && (
+                  <h1 className="hy-anim-heading" style={{ fontSize: "3rem", marginBottom: "1rem", fontWeight: "700" }}>
                     {slide.heading}
                   </h1>
                 )}
-                {slide.paragraph && (
-                  <p style={{ fontSize: "1.3rem", marginBottom: "1.5rem" }}>{slide.paragraph}</p>
+                {slide.paragraph && isActive && (
+                  <p className="hy-anim-paragraph" style={{ fontSize: "1.3rem", marginBottom: "1.5rem" }}>
+                    {slide.paragraph}
+                  </p>
                 )}
-                {slide.button === "contact" && (
+                {slide.button === "contact" && isActive && (
                   <Link
                     href="/contact"
+                    className="hy-anim-button"
                     style={{
                       backgroundColor: "transparent",
                       color: "#f59e0b",
@@ -417,9 +425,10 @@ export default function Home() {
                     {t.contactButton}
                   </Link>
                 )}
-                {slide.button === "services" && (
+                {slide.button === "services" && isActive && (
                   <Link
                     href="#services-section"
+                    className="hy-anim-button"
                     style={{
                       backgroundColor: "transparent",
                       color: "#f59e0b",
