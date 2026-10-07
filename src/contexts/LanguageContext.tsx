@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getAuthHeaders } from '@/lib/auth-client';
+import { translations } from '@/data/translations';
 
 type Locale = 'en' | 'rw' | 'zh';
 
@@ -11,41 +12,70 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-// Import translations
-import { translations } from '@/data/translations';
+const LOCALE_STORAGE_KEY = 'hy_locale';
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocale] = useState<Locale>('en');
+  const [locale, setLocaleState] = useState<Locale>('en');
 
-  // Load saved language preference from user_preferences
+  // ✅ On mount: load from localStorage first, then DB, then browser
   useEffect(() => {
-    const loadLanguage = async () => {
+    const init = async () => {
+      // 1) Try localStorage (instant)
+      const saved = typeof window !== 'undefined' ? localStorage.getItem(LOCALE_STORAGE_KEY) : null;
+      if (saved && ['en', 'rw', 'zh'].includes(saved)) {
+        setLocaleState(saved as Locale);
+      }
+
+      // 2) If logged in, DB takes priority (cross-device)
       const token = localStorage.getItem('token');
       if (token) {
         try {
           const res = await fetch('/api/user/preferences', { headers: getAuthHeaders() });
-          if (res.ok) {
+          if (res.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          } else if (res.ok) {
             const prefs = await res.json();
-            const savedLang = prefs.language;
-            if (savedLang && ['en', 'rw', 'zh'].includes(savedLang)) {
-              setLocale(savedLang as Locale);
+            const dbLang = prefs.language;
+            if (dbLang && ['en', 'rw', 'zh'].includes(dbLang)) {
+              setLocaleState(dbLang as Locale);
+              localStorage.setItem(LOCALE_STORAGE_KEY, dbLang);
               return;
             }
           }
-        } catch (err) {
-          console.error(err);
-        }
+        } catch { /* silent */ }
       }
-      // Fallback: browser language
-      const browserLang = navigator.language.slice(0, 2);
-      if (browserLang === 'rw') setLocale('rw');
-      else if (browserLang === 'zh') setLocale('zh');
-      else setLocale('en');
+
+      // 3) If nothing saved, use browser language (only first visit)
+      if (!saved) {
+        const browserLang = navigator.language.slice(0, 2);
+        const detected: Locale = browserLang === 'rw' ? 'rw' : browserLang === 'zh' ? 'zh' : 'en';
+        setLocaleState(detected);
+        localStorage.setItem(LOCALE_STORAGE_KEY, detected);
+      }
     };
-    loadLanguage();
+    init();
   }, []);
 
-  // Translation function with interpolation support
+  // ✅ Change locale — saves to state + localStorage + DB
+  const updateLocale = (newLocale: Locale) => {
+    setLocaleState(newLocale);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
+    }
+
+    // Also sync to DB if logged in (fire-and-forget)
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (token) {
+      fetch('/api/user/preferences', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ language: newLocale }),
+      }).catch(() => {});
+    }
+  };
+
+  // Translation function
   const t = (key: string, params?: Record<string, string | number>): string => {
     const keys = key.split('.');
     let value: any = translations[locale];
@@ -63,23 +93,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       });
     }
     return text;
-  };
-
-  // Save language preference whenever it changes (to user_preferences)
-  const updateLocale = async (newLocale: Locale) => {
-    setLocale(newLocale);
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        await fetch('/api/user/preferences', {
-          method: 'PUT',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ language: newLocale }),
-        });
-      } catch (err) {
-        console.error(err);
-      }
-    }
   };
 
   return (
