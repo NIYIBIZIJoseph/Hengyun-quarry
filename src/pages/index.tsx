@@ -23,6 +23,13 @@ const COLORS = {
   shadowHover: "0 8px 25px rgba(0,0,0,0.08)",
 };
 
+// ========== TEXT ANIMATION TIMING ==========
+// Change these numbers to control when text appears (in seconds)
+const ANIM_HEADING_DELAY = "0.6s";     // heading appears at 0.6s
+const ANIM_PARAGRAPH_DELAY = "1.6s";   // paragraph at 1.6s
+const ANIM_BUTTON_DELAY = "2.6s";      // button at 2.6s
+const ANIM_DURATION = "1s";            // fade-in duration
+
 // ========== GLOBAL STYLES ==========
 const globalStyles = `
   .image-hover-container {
@@ -150,19 +157,25 @@ const globalStyles = `
     overflow: hidden;
   }
 
-  /* ✅ Staged text animations */
+  /* ✅ Staged text animations — controlled by CSS variables */
   @keyframes hyFadeUp {
     from { opacity: 0; transform: translateY(24px); }
     to   { opacity: 1; transform: translateY(0); }
   }
   .hy-anim-heading {
-    animation: hyFadeUp 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation: hyFadeUp var(--anim-duration, ${ANIM_DURATION})
+               cubic-bezier(0.4, 0, 0.2, 1)
+               var(--anim-heading-delay, ${ANIM_HEADING_DELAY}) both;
   }
   .hy-anim-paragraph {
-    animation: hyFadeUp 0.9s cubic-bezier(0.4, 0, 0.2, 1) 0.7s both;
+    animation: hyFadeUp var(--anim-duration, ${ANIM_DURATION})
+               cubic-bezier(0.4, 0, 0.2, 1)
+               var(--anim-paragraph-delay, ${ANIM_PARAGRAPH_DELAY}) both;
   }
   .hy-anim-button {
-    animation: hyFadeUp 0.9s cubic-bezier(0.4, 0, 0.2, 1) 1.4s both;
+    animation: hyFadeUp var(--anim-duration, ${ANIM_DURATION})
+               cubic-bezier(0.4, 0, 0.2, 1)
+               var(--anim-button-delay, ${ANIM_BUTTON_DELAY}) both;
   }
 `;
 
@@ -253,10 +266,8 @@ export default function Home() {
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [modalAlt, setModalAlt] = useState<string>("");
 
-  // ✅ Video refs for each slide
   const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
 
-  // Hero slides — videos
   const slides = [
     {
       video: "/homeslide/slide1video.mp4",
@@ -287,7 +298,6 @@ export default function Home() {
     "/operations/facility6.jpg",
   ];
 
-  // ✅ When slide changes → play active video from start
   useEffect(() => {
     videoRefs.current.forEach((v, idx) => {
       if (!v) return;
@@ -295,9 +305,7 @@ export default function Home() {
         v.currentTime = 0;
         const playPromise = v.play();
         if (playPromise !== undefined) {
-          playPromise.catch(() => {
-            // Autoplay blocked — muted usually works, retry on next user action
-          });
+          playPromise.catch(() => {});
         }
       } else {
         v.pause();
@@ -332,10 +340,18 @@ export default function Home() {
       {modalImage && <ImageModal imageUrl={modalImage} alt={modalAlt} onClose={() => setModalImage(null)} />}
 
       {/* ========== HERO CAROUSEL WITH VIDEOS ========== */}
-      <div className="hero-carousel">
+      <div
+        className="hero-carousel"
+        style={{
+          // ✅ Tunable text animation timing
+          ['--anim-heading-delay' as any]: ANIM_HEADING_DELAY,
+          ['--anim-paragraph-delay' as any]: ANIM_PARAGRAPH_DELAY,
+          ['--anim-button-delay' as any]: ANIM_BUTTON_DELAY,
+          ['--anim-duration' as any]: ANIM_DURATION,
+        }}
+      >
         {slides.map((slide, index) => {
           const isActive = index === currentSlide;
-          // Reset text animations each time a slide becomes active
           const slideKey = `${index}-${isActive ? 'active' : 'idle'}`;
           return (
             <div
@@ -350,7 +366,6 @@ export default function Home() {
                 overflow: "hidden",
               }}
             >
-              {/* Video — plays once, advances on end */}
               <video
                 ref={(el) => { videoRefs.current[index] = el; }}
                 autoPlay={isActive}
@@ -371,7 +386,6 @@ export default function Home() {
                 <source src={slide.video} type="video/mp4" />
               </video>
 
-              {/* Dark overlay */}
               <div
                 style={{
                   position: "absolute",
@@ -382,7 +396,6 @@ export default function Home() {
                 }}
               />
 
-              {/* Text — staged animations */}
               <div
                 key={slideKey}
                 style={{
@@ -448,7 +461,6 @@ export default function Home() {
           );
         })}
 
-        {/* Arrows */}
         <button
           onClick={prevSlide}
           style={{
@@ -488,7 +500,6 @@ export default function Home() {
           ❯
         </button>
 
-        {/* Dots */}
         <div
           style={{
             position: "absolute",
