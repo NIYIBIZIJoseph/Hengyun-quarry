@@ -48,6 +48,12 @@ export default function PublicHeader() {
     { href: "/faq", label: t.faq || "FAQ" },
   ];
 
+  const languages = [
+    { code: "en", label: "English" },
+    { code: "rw", label: "Kinyarwanda" },
+    { code: "zh", label: "中文" },
+  ];
+
   return (
     <>
       <header style={{
@@ -61,10 +67,9 @@ export default function PublicHeader() {
         alignItems: "center",
         minHeight: "86px",
       }}>
-        {/* Logo — larger, bolder, with tagline */}
+        {/* Logo */}
         <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center" }}>
           <svg width="220" height="60" viewBox="0 0 260 68" fill="none">
-            {/* Mountain graphic — bigger */}
             <path
               d="M10 48 L32 18 L48 34 L66 10 L88 40 L106 22 L130 48"
               stroke={COLORS.primary} strokeWidth="3.2" fill="none"
@@ -75,16 +80,10 @@ export default function PublicHeader() {
               stroke={COLORS.primary} strokeWidth="3.2" fill="none"
               strokeLinecap="round" strokeLinejoin="round"
             />
-
-            {/* Chinese character 恒 */}
             <text x="30" y="28" fontFamily="serif" fontSize="22"
                   fill={COLORS.primary} fontWeight="bold">恒</text>
-
-            {/* Main brand name — bold and large */}
             <text x="70" y="34" fontFamily="Arial, Helvetica, sans-serif" fontSize="20"
                   fill={COLORS.white} fontWeight="900" letterSpacing="1">HENG YUN</text>
-
-            {/* Tagline under brand name */}
             <text x="70" y="52" fontFamily="Arial, Helvetica, sans-serif" fontSize="8"
                   fill="#94a3b8" fontWeight="600" letterSpacing="2.5">SAND AND QUARRY SUPPLIES</text>
           </svg>
@@ -116,7 +115,7 @@ export default function PublicHeader() {
             );
           })}
 
-          {/* Language globe — subtle, far right */}
+          {/* Language globe — desktop */}
           <div ref={langRef} style={{ position: "relative" }}>
             <button
               onClick={() => setLangOpen(!langOpen)}
@@ -149,11 +148,7 @@ export default function PublicHeader() {
                 minWidth: "160px",
                 zIndex: 1002,
               }}>
-                {[
-                  { code: "en", label: "English" },
-                  { code: "rw", label: "Kinyarwanda" },
-                  { code: "zh", label: "中文" },
-                ].map(l => (
+                {languages.map(l => (
                   <button
                     key={l.code}
                     onClick={() => { setLocale(l.code as any); setLangOpen(false); }}
@@ -253,6 +248,7 @@ export default function PublicHeader() {
                 <FontAwesomeIcon icon={faTimes} />
               </button>
             </div>
+
             <nav style={{ flex: 1, overflowY: "auto" }}>
               {navLinks.map(link => {
                 const active = currentPath === link.href;
@@ -278,7 +274,70 @@ export default function PublicHeader() {
                   </Link>
                 );
               })}
+
+              {/* ✅ Language switcher inside mobile menu */}
+              <div>
+                <button
+                  onClick={() => setLangOpen(!langOpen)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    width: "100%",
+                    padding: "1.1rem 1.75rem",
+                    background: langOpen ? COLORS.navActive : "transparent",
+                    color: langOpen ? COLORS.primary : "white",
+                    border: "none",
+                    cursor: "pointer",
+                    fontWeight: "600",
+                    fontSize: "1rem",
+                    letterSpacing: "0.5px",
+                    textTransform: "uppercase",
+                    textAlign: "left",
+                    borderLeft: langOpen ? `4px solid ${COLORS.primary}` : "4px solid transparent",
+                  }}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    <FontAwesomeIcon icon={faGlobe} style={{ fontSize: "1rem" }} />
+                    Language
+                  </span>
+                  <span style={{ fontSize: "0.8rem", opacity: 0.6 }}>
+                    {locale.toUpperCase()}
+                  </span>
+                </button>
+
+                {langOpen && (
+                  <div style={{ background: "rgba(0,0,0,0.2)" }}>
+                    {languages.map(l => (
+                      <button
+                        key={l.code}
+                        onClick={() => setLocale(l.code as any)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          width: "100%",
+                          padding: "0.9rem 1.75rem 0.9rem 3rem",
+                          background: "transparent",
+                          color: locale === l.code ? COLORS.primary : "#e2e8f0",
+                          border: "none",
+                          cursor: "pointer",
+                          fontWeight: locale === l.code ? "700" : "400",
+                          fontSize: "0.9rem",
+                          textAlign: "left",
+                        }}
+                      >
+                        <span>{l.label}</span>
+                        {locale === l.code && (
+                          <span style={{ color: COLORS.primary, fontSize: "1rem" }}>✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </nav>
+
             <div style={{ padding: "1.25rem 1.75rem" }}>
               <Link
                 href="/login"
