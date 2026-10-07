@@ -24,7 +24,6 @@ const COLORS = {
 };
 
 // ========== TEXT ANIMATION TIMING ==========
-// Change these numbers to control when text appears (in seconds)
 const ANIM_HEADING_DELAY = "0.6s";
 const ANIM_PARAGRAPH_DELAY = "1.6s";
 const ANIM_BUTTON_DELAY = "2.6s";
@@ -157,7 +156,6 @@ const globalStyles = `
     overflow: hidden;
   }
 
-  /* ✅ Staged text animations */
   @keyframes hyFadeUp {
     from { opacity: 0; transform: translateY(24px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -289,15 +287,15 @@ export default function Home() {
     },
   ];
 
+  // ✅ Updated facility images — 4 images now
   const facilityImages = [
-    "/operations/facility1.jpg",
-    "/operations/facility2.jpg",
-    "/operations/facility3.jpg",
-    "/operations/facility4.jpg",
-    "/operations/facility5.jpg",
-    "/operations/facility6.jpg",
+    "/operations/operation1.jpg",
+    "/operations/operation2.jpg",
+    "/operations/operation3.jpg",
+    "/operations/operation4.jpg",
   ];
 
+  // ✅ Hero auto-slide (via video onEnded — no interval needed here)
   useEffect(() => {
     videoRefs.current.forEach((v, idx) => {
       if (!v) return;
@@ -313,6 +311,14 @@ export default function Home() {
       }
     });
   }, [currentSlide]);
+
+  // ✅ Facility auto-slide every 4 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFacilitySlide((prev) => (prev + 1) % facilityImages.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [facilityImages.length]);
 
   useEffect(() => {
     if (window.location.hash) {
@@ -529,7 +535,7 @@ export default function Home() {
           </div>
           <div style={{ flex: "1", minWidth: "250px" }}>
             <video width="100%" controls style={{ borderRadius: "8px", display: "block", aspectRatio: "16/9", objectFit: "cover" }}>
-              <source src="/video/video1.mp4" type="video/mp4" />
+              <source src="/video/demo.mp4" type="video/mp4" />
               Your browser does not support the video tag.
             </video>
             <div style={{ textAlign: "center", marginTop: "0.5rem", fontSize: "0.9rem", color: COLORS.textMuted }}>{t.watchVideo}</div>

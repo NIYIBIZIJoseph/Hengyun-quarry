@@ -396,7 +396,7 @@ export default function MarketHome() {
       {/* ========== HERO – matches Products page ========== */}
       <div style={{
         height: "450px",
-        backgroundImage: "url('/products/product2.jpg')",
+        backgroundImage: "url('/homeslide/market.webp')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         position: "relative",

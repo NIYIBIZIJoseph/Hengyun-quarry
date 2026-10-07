@@ -288,7 +288,7 @@ export default function About() {
       {/* ========== HERO – matches Products page ========== */}
       <section style={{
         height: "450px",
-        backgroundImage: "url('/operations/facility2.jpg')",
+        backgroundImage: "url('/products/quarrydust3.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         position: "relative",

@@ -237,17 +237,17 @@ export default function ProductsPage() {
   };
 
   const sandProducts = [
-    { id: "sand", title: t.sandTitle, desc: t.sandDesc, img: "/products/product2.jpg" },
-    { id: "fine-sand", title: t.fineSandTitle, desc: t.fineSandDesc, img: "/products/product3.jpg" },
+    { id: "sand", title: t.sandTitle, desc: t.sandDesc, img: "/products/sand3.jpg" },
+    { id: "fine-sand", title: t.fineSandTitle, desc: t.fineSandDesc, img: "/products/othersand3.jpg" },
   ];
 
   const quarryProducts = [
-    { id: "aggregates", title: t.aggregatesTitle, desc: t.aggregatesDesc, img: "/products/product1.jpg" },
-    { id: "crusher-run", title: t.crusherRunTitle, desc: t.crusherRunDesc, img: "/products/product6.jpg" },
-    { id: "quarry-dust", title: t.quarryDustTitle, desc: t.quarryDustDesc, img: "/products/product4.jpg" },
-    { id: "ballast", title: t.ballastTitle, desc: t.ballastDesc, img: "/products/product5.jpg" },
-    { id: "road-base", title: t.roadBaseTitle, desc: t.roadBaseDesc, img: "/products/product7.jpg" },
-    { id: "fill-material", title: t.fillMaterialTitle, desc: t.fillMaterialDesc, img: "/products/product8.jpg" },
+    { id: "aggregates", title: t.aggregatesTitle, desc: t.aggregatesDesc, img: "/products/aggregates3.jpg" },
+    { id: "crusher-run", title: t.crusherRunTitle, desc: t.crusherRunDesc, img: "/products/crusherrun3.jpg" },
+    { id: "quarry-dust", title: t.quarryDustTitle, desc: t.quarryDustDesc, img: "/products/quarrydust3.jpg" },
+    { id: "ballast", title: t.ballastTitle, desc: t.ballastDesc, img: "/products/ballast3.jpg" },
+    { id: "road-base", title: t.roadBaseTitle, desc: t.roadBaseDesc, img: "/products/roadbase3.jpg" },
+    { id: "fill-material", title: t.fillMaterialTitle, desc: t.fillMaterialDesc, img: "/products/fillmaterial3.jpg" },
   ];
 
   return (
@@ -418,7 +418,7 @@ export default function ProductsPage() {
 // ========== STYLES ==========
 const heroSectionStyle: React.CSSProperties = {
   height: "450px",
-  backgroundImage: "url('/products/product2.jpg')",
+  backgroundImage: "url('/homeslide/product.jpg')",
   backgroundSize: "cover",
   backgroundPosition: "center",
   position: "relative",

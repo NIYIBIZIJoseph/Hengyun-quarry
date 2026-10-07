@@ -85,14 +85,14 @@ export default function ProductDetail() {
 
   // Static product data
   const productImageMap: Record<string, string> = {
-    sand: "/products/product2.jpg",
-    "fine-sand": "/products/product3.jpg",
-    aggregates: "/products/product1.jpg",
-    "crusher-run": "/products/product6.jpg",
-    "quarry-dust": "/products/product4.jpg",
-    ballast: "/products/product5.jpg",
-    "road-base": "/products/product7.jpg",
-    "fill-material": "/products/product8.jpg",
+    sand: "/products/sand3.jpg",
+    "fine-sand": "/products/othersand3.jpg",
+    aggregates: "/products/aggregates3.jpg",
+    "crusher-run": "/products/crusherrun3.jpg",
+    "quarry-dust": "/products/quarrydust3.jpg",
+    ballast: "/products/ballast3.jpg",
+    "road-base": "/products/roadbase3.jpg",
+    "fill-material": "/products/fillmaterial3.jpg",
   };
 
   const productDetails: Record<string, { titleKey: string; descKey: string; fullDescKey: string }> = {
