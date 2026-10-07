@@ -54,15 +54,11 @@ export default function PublicHeader() {
     { code: "zh", label: "中文" },
   ];
 
-  // ✅ Universal language changer — works from desktop + mobile
+  // ✅ Language changer — no reload (sessionStorage + React re-render handle it)
   const changeLanguage = (code: string) => {
     setLocale(code as any);
     setLangOpen(false);
     setMenuOpen(false);
-    // Reload so the entire app picks up the new locale
-    setTimeout(() => {
-      window.location.reload();
-    }, 150);
   };
 
   return (

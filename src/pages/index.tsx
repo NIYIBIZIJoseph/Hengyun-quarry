@@ -25,10 +25,10 @@ const COLORS = {
 
 // ========== TEXT ANIMATION TIMING ==========
 // Change these numbers to control when text appears (in seconds)
-const ANIM_HEADING_DELAY = "0.6s";     // heading appears at 0.6s
-const ANIM_PARAGRAPH_DELAY = "1.6s";   // paragraph at 1.6s
-const ANIM_BUTTON_DELAY = "2.6s";      // button at 2.6s
-const ANIM_DURATION = "1s";            // fade-in duration
+const ANIM_HEADING_DELAY = "0.6s";
+const ANIM_PARAGRAPH_DELAY = "1.6s";
+const ANIM_BUTTON_DELAY = "2.6s";
+const ANIM_DURATION = "1s";
 
 // ========== GLOBAL STYLES ==========
 const globalStyles = `
@@ -157,7 +157,7 @@ const globalStyles = `
     overflow: hidden;
   }
 
-  /* ✅ Staged text animations — controlled by CSS variables */
+  /* ✅ Staged text animations */
   @keyframes hyFadeUp {
     from { opacity: 0; transform: translateY(24px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -343,7 +343,6 @@ export default function Home() {
       <div
         className="hero-carousel"
         style={{
-          // ✅ Tunable text animation timing
           ['--anim-heading-delay' as any]: ANIM_HEADING_DELAY,
           ['--anim-paragraph-delay' as any]: ANIM_PARAGRAPH_DELAY,
           ['--anim-button-delay' as any]: ANIM_BUTTON_DELAY,
@@ -371,7 +370,7 @@ export default function Home() {
                 autoPlay={isActive}
                 muted
                 playsInline
-                preload="auto"
+                preload="none"
                 onEnded={nextSlide}
                 style={{
                   position: "absolute",

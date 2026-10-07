@@ -19,22 +19,49 @@ export default function App({ Component, pageProps }: AppProps) {
   const isDashboard = !isPublic;
 
   const [loading, setLoading] = useState(false);
-  const [nextRouteLoading, setNextRouteLoading] = useState(false);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
-  // ✅ Loading tied to actual resource loading
+  // ✅ First-visit ribbon: only for public pages, once per browser session
   useEffect(() => {
-    let startTime = 0;
+    if (typeof window === 'undefined') return;
+
+    const isFirstVisit = !sessionStorage.getItem('hy_initial_load');
+    const onPublicPage = !window.location.pathname.startsWith('/dashboard');
+
+    if (isFirstVisit && onPublicPage) {
+      setLoading(true);
+
+      const hide = () => {
+        setLoading(false);
+        sessionStorage.setItem('hy_initial_load', '1');
+        setInitialLoadDone(true);
+      };
+
+      // Hide when page is truly ready, or after 2.5s max
+      const timer = setTimeout(hide, 2500);
+      window.addEventListener('load', hide, { once: true });
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('load', hide);
+      };
+    } else {
+      setInitialLoadDone(true);
+    }
+  }, []);
+
+  // ✅ Route-change spinner (only after first visit)
+  useEffect(() => {
+    if (!initialLoadDone) return;
+
+    let minTimer: NodeJS.Timeout | null = null;
 
     const handleStart = () => {
-      startTime = Date.now();
       setLoading(true);
+      minTimer = setTimeout(() => { minTimer = null; }, 400);
     };
-
     const handleComplete = () => {
-      // Enforce minimum 500ms so spinner is visible
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, 500 - elapsed);
-      setTimeout(() => setLoading(false), remaining);
+      if (minTimer) setTimeout(() => setLoading(false), 400);
+      else setLoading(false);
     };
 
     router.events.on('routeChangeStart', handleStart);
@@ -44,10 +71,11 @@ export default function App({ Component, pageProps }: AppProps) {
       router.events.off('routeChangeStart', handleStart);
       router.events.off('routeChangeComplete', handleComplete);
       router.events.off('routeChangeError', handleComplete);
+      if (minTimer) clearTimeout(minTimer);
     };
-  }, [router]);
+  }, [router, initialLoadDone]);
 
-  // ✅ Preferences — dashboard only
+  // Preferences — dashboard only
   useEffect(() => {
     if (!isDashboard) return;
     const token = localStorage.getItem('token');
@@ -59,7 +87,6 @@ export default function App({ Component, pageProps }: AppProps) {
         if (res.status === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          document.cookie = 'token=; path=/; max-age=0';
           return;
         }
         if (res.ok) {
@@ -73,7 +100,7 @@ export default function App({ Component, pageProps }: AppProps) {
     applyPreferences();
   }, [isDashboard, router.pathname]);
 
-  // ✅ Maintenance (public)
+  // Maintenance check (public-safe)
   useEffect(() => {
     const check = async () => {
       try {

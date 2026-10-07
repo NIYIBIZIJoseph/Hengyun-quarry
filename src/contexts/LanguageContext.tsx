@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getAuthHeaders } from '@/lib/auth-client';
 import { translations } from '@/data/translations';
 
 type Locale = 'en' | 'rw' | 'zh';
@@ -12,70 +11,29 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-const LOCALE_STORAGE_KEY = 'hy_locale';
+const KEY = 'hy_locale';
+const VALID: Locale[] = ['en', 'rw', 'zh'];
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('en');
 
-  // ✅ On mount: load from localStorage first, then DB, then browser
+  // Restore from sessionStorage (survives refresh, not new tab)
   useEffect(() => {
-    const init = async () => {
-      // 1) Try localStorage (instant)
-      const saved = typeof window !== 'undefined' ? localStorage.getItem(LOCALE_STORAGE_KEY) : null;
-      if (saved && ['en', 'rw', 'zh'].includes(saved)) {
-        setLocaleState(saved as Locale);
-      }
-
-      // 2) If logged in, DB takes priority (cross-device)
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const res = await fetch('/api/user/preferences', { headers: getAuthHeaders() });
-          if (res.status === 401) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-          } else if (res.ok) {
-            const prefs = await res.json();
-            const dbLang = prefs.language;
-            if (dbLang && ['en', 'rw', 'zh'].includes(dbLang)) {
-              setLocaleState(dbLang as Locale);
-              localStorage.setItem(LOCALE_STORAGE_KEY, dbLang);
-              return;
-            }
-          }
-        } catch { /* silent */ }
-      }
-
-      // 3) If nothing saved, use browser language (only first visit)
-      if (!saved) {
-        const browserLang = navigator.language.slice(0, 2);
-        const detected: Locale = browserLang === 'rw' ? 'rw' : browserLang === 'zh' ? 'zh' : 'en';
-        setLocaleState(detected);
-        localStorage.setItem(LOCALE_STORAGE_KEY, detected);
-      }
-    };
-    init();
+    if (typeof window === 'undefined') return;
+    const saved = sessionStorage.getItem(KEY);
+    if (saved && VALID.includes(saved as Locale)) {
+      setLocaleState(saved as Locale);
+    }
   }, []);
 
-  // ✅ Change locale — saves to state + localStorage + DB
-  const updateLocale = (newLocale: Locale) => {
+  const setLocale = (newLocale: Locale) => {
+    if (!VALID.includes(newLocale)) return;
     setLocaleState(newLocale);
     if (typeof window !== 'undefined') {
-      localStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
-    }
-
-    // Also sync to DB if logged in (fire-and-forget)
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (token) {
-      fetch('/api/user/preferences', {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ language: newLocale }),
-      }).catch(() => {});
+      sessionStorage.setItem(KEY, newLocale);
     }
   };
 
-  // Translation function
   const t = (key: string, params?: Record<string, string | number>): string => {
     const keys = key.split('.');
     let value: any = translations[locale];
@@ -96,7 +54,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <LanguageContext.Provider value={{ locale, setLocale: updateLocale, t }}>
+    <LanguageContext.Provider value={{ locale, setLocale, t }}>
       {children}
     </LanguageContext.Provider>
   );
