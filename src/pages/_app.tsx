@@ -19,24 +19,22 @@ export default function App({ Component, pageProps }: AppProps) {
   const isDashboard = !isPublic;
 
   const [loading, setLoading] = useState(false);
+  const [nextRouteLoading, setNextRouteLoading] = useState(false);
 
-  // ✅ Loading spinner with minimum 400ms display (no flash)
+  // ✅ Loading tied to actual resource loading
   useEffect(() => {
-    let minTimer: NodeJS.Timeout | null = null;
+    let startTime = 0;
 
     const handleStart = () => {
+      startTime = Date.now();
       setLoading(true);
-      minTimer = setTimeout(() => {
-        minTimer = null;
-      }, 400);
     };
 
     const handleComplete = () => {
-      if (minTimer) {
-        setTimeout(() => setLoading(false), 400);
-      } else {
-        setLoading(false);
-      }
+      // Enforce minimum 500ms so spinner is visible
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 500 - elapsed);
+      setTimeout(() => setLoading(false), remaining);
     };
 
     router.events.on('routeChangeStart', handleStart);
@@ -46,11 +44,10 @@ export default function App({ Component, pageProps }: AppProps) {
       router.events.off('routeChangeStart', handleStart);
       router.events.off('routeChangeComplete', handleComplete);
       router.events.off('routeChangeError', handleComplete);
-      if (minTimer) clearTimeout(minTimer);
     };
   }, [router]);
 
-  // ✅ Apply user preferences — ONLY on dashboard pages (no more 401 on public)
+  // ✅ Preferences — dashboard only
   useEffect(() => {
     if (!isDashboard) return;
     const token = localStorage.getItem('token');
@@ -59,35 +56,26 @@ export default function App({ Component, pageProps }: AppProps) {
     const applyPreferences = async () => {
       try {
         const res = await fetch('/api/user/preferences', { headers: getAuthHeaders() });
-
-        // 401 = expired token → clear and stop
         if (res.status === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           document.cookie = 'token=; path=/; max-age=0';
           return;
         }
-
         if (res.ok) {
           const prefs = await res.json();
           document.documentElement.setAttribute('data-theme', prefs.theme || 'light');
-          if (prefs.compact_mode === 'true') {
-            document.body.classList.add('compact-mode');
-          } else {
-            document.body.classList.remove('compact-mode');
-          }
+          if (prefs.compact_mode === 'true') document.body.classList.add('compact-mode');
+          else document.body.classList.remove('compact-mode');
         }
-      } catch {
-        // silent fail — no console spam
-      }
+      } catch {}
     };
-
     applyPreferences();
   }, [isDashboard, router.pathname]);
 
-  // ✅ Maintenance mode check (public-safe endpoint)
+  // ✅ Maintenance (public)
   useEffect(() => {
-    const checkMaintenance = async () => {
+    const check = async () => {
       try {
         const res = await fetch('/api/public/maintenance-mode');
         const data = await res.json();
@@ -97,11 +85,9 @@ export default function App({ Component, pageProps }: AppProps) {
             window.location.href = '/maintenance';
           }
         }
-      } catch {
-        // silent fail
-      }
+      } catch {}
     };
-    checkMaintenance();
+    check();
   }, []);
 
   return (

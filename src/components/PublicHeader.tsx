@@ -50,33 +50,47 @@ export default function PublicHeader() {
 
   return (
     <>
-      {/* ============ CLEAN HEADER ============ */}
       <header style={{
         position: "sticky",
         top: 0,
         zIndex: 1000,
         backgroundColor: COLORS.navDark,
-        padding: "0.75rem 2rem",
+        padding: "0.85rem 2.5rem",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        minHeight: "72px",
+        minHeight: "86px",
       }}>
-        {/* Logo left */}
+        {/* Logo — larger, bolder, with tagline */}
         <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center" }}>
-          <svg width="140" height="38" viewBox="0 0 160 45" fill="none">
-            <path d="M8 36 L25 14 L38 27 L52 9 L70 31 L84 18 L102 36"
-                  stroke={COLORS.primary} strokeWidth="2.5" fill="none"
-                  strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M102 36 L115 22 L128 34 L142 18 L155 36"
-                  stroke={COLORS.primary} strokeWidth="2.5" fill="none"
-                  strokeLinecap="round" strokeLinejoin="round"/>
-            <text x="24" y="20" fontFamily="serif" fontSize="16" fill={COLORS.primary} fontWeight="bold">恒</text>
-            <text x="52" y="25" fontFamily="Arial, sans-serif" fontSize="12" fill={COLORS.white} fontWeight="bold">HENG YUN</text>
+          <svg width="220" height="60" viewBox="0 0 260 68" fill="none">
+            {/* Mountain graphic — bigger */}
+            <path
+              d="M10 48 L32 18 L48 34 L66 10 L88 40 L106 22 L130 48"
+              stroke={COLORS.primary} strokeWidth="3.2" fill="none"
+              strokeLinecap="round" strokeLinejoin="round"
+            />
+            <path
+              d="M130 48 L146 30 L162 44 L180 22 L198 48"
+              stroke={COLORS.primary} strokeWidth="3.2" fill="none"
+              strokeLinecap="round" strokeLinejoin="round"
+            />
+
+            {/* Chinese character 恒 */}
+            <text x="30" y="28" fontFamily="serif" fontSize="22"
+                  fill={COLORS.primary} fontWeight="bold">恒</text>
+
+            {/* Main brand name — bold and large */}
+            <text x="70" y="34" fontFamily="Arial, Helvetica, sans-serif" fontSize="20"
+                  fill={COLORS.white} fontWeight="900" letterSpacing="1">HENG YUN</text>
+
+            {/* Tagline under brand name */}
+            <text x="70" y="52" fontFamily="Arial, Helvetica, sans-serif" fontSize="8"
+                  fill="#94a3b8" fontWeight="600" letterSpacing="2.5">SAND AND QUARRY SUPPLIES</text>
           </svg>
         </Link>
 
-        {/* Nav right (desktop) — big space in between */}
+        {/* Desktop nav */}
         <nav className="hy-desktop-nav" style={{
           display: "flex",
           alignItems: "center",
@@ -102,7 +116,7 @@ export default function PublicHeader() {
             );
           })}
 
-          {/* Globe dropdown at the far right, subtle */}
+          {/* Language globe — subtle, far right */}
           <div ref={langRef} style={{ position: "relative" }}>
             <button
               onClick={() => setLangOpen(!langOpen)}
@@ -161,13 +175,13 @@ export default function PublicHeader() {
             )}
           </div>
 
-          {/* Login button */}
+          {/* Login */}
           <Link
             href="/login"
             style={{
               background: COLORS.primary,
               color: "white",
-              padding: "0.55rem 1.5rem",
+              padding: "0.6rem 1.6rem",
               borderRadius: "8px",
               textDecoration: "none",
               fontWeight: "700",
@@ -180,7 +194,7 @@ export default function PublicHeader() {
           </Link>
         </nav>
 
-        {/* Hamburger (mobile only) */}
+        {/* Hamburger (mobile) */}
         <button
           onClick={() => setMenuOpen(true)}
           className="hy-hamburger-btn"
@@ -201,7 +215,7 @@ export default function PublicHeader() {
         </button>
       </header>
 
-      {/* ============ MOBILE SLIDE-IN PANEL ============ */}
+      {/* Mobile slide-in panel */}
       {menuOpen && (
         <>
           <div
@@ -222,9 +236,8 @@ export default function PublicHeader() {
             flexDirection: "column",
             animation: "hy-slide-in 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
           }}>
-            {/* Header — just an X, no logo (avoids duplication) */}
             <div style={{
-              display: "flex", justifyContent: "flex-end", alignItems: "center",
+              display: "flex", justifyContent: "flex-end",
               padding: "1rem 1.25rem",
             }}>
               <button
@@ -240,8 +253,6 @@ export default function PublicHeader() {
                 <FontAwesomeIcon icon={faTimes} />
               </button>
             </div>
-
-            {/* Links */}
             <nav style={{ flex: 1, overflowY: "auto" }}>
               {navLinks.map(link => {
                 const active = currentPath === link.href;
@@ -268,8 +279,6 @@ export default function PublicHeader() {
                 );
               })}
             </nav>
-
-            {/* Login */}
             <div style={{ padding: "1.25rem 1.75rem" }}>
               <Link
                 href="/login"
