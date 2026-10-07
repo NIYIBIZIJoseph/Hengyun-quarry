@@ -1,15 +1,14 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { translations } from "@/data/translations";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faGlobe, faBars, faTimes } from "@fortawesome/free-solid-svg-icons";
+import { faBars, faTimes, faGlobe } from "@fortawesome/free-solid-svg-icons";
 
 const COLORS = {
   primary: "#f59e0b",
-  primaryDark: "#d97706",
   navDark: "#0f2b3d",
   navActive: "#1a3f57",
   white: "#ffffff",
@@ -24,13 +23,11 @@ export default function PublicHeader() {
   const langRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (langRef.current && !langRef.current.contains(event.target as Node)) {
-        setLangOpen(false);
-      }
+    const onClick = (e: MouseEvent) => {
+      if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
   useEffect(() => { setMenuOpen(false); }, [router.pathname]);
@@ -45,56 +42,82 @@ export default function PublicHeader() {
   const navLinks = [
     { href: "/", label: t.home },
     { href: "/about", label: t.about },
-    { href: "/products", label: t.products, sub: [
-      { href: "/products#sand", label: t.sand },
-      { href: "/products#quarry", label: t.quarry },
-    ]},
-    { href: "/market", label: t.market, sub: [
-      { href: "/market/sand", label: t.sand },
-      { href: "/market/quarry", label: t.quarry },
-    ]},
+    { href: "/products", label: t.products },
+    { href: "/market", label: t.market },
     { href: "/contact", label: t.contact },
     { href: "/faq", label: t.faq || "FAQ" },
   ];
 
   return (
     <>
-      {/* ============ HEADER BAR ============ */}
+      {/* ============ CLEAN HEADER ============ */}
       <header style={{
         position: "sticky",
         top: 0,
         zIndex: 1000,
         backgroundColor: COLORS.navDark,
-        padding: "0.75rem 1.25rem",
+        padding: "0.75rem 2rem",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        minHeight: "68px",
+        minHeight: "72px",
       }}>
-        {/* Logo */}
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "0.5rem", textDecoration: "none" }}>
-          <svg width="130" height="34" viewBox="0 0 160 45" fill="none">
-            <path d="M8 36 L25 14 L38 27 L52 9 L70 31 L84 18 L102 36" stroke={COLORS.primary} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M102 36 L115 22 L128 34 L142 18 L155 36" stroke={COLORS.primary} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+        {/* Logo left */}
+        <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center" }}>
+          <svg width="140" height="38" viewBox="0 0 160 45" fill="none">
+            <path d="M8 36 L25 14 L38 27 L52 9 L70 31 L84 18 L102 36"
+                  stroke={COLORS.primary} strokeWidth="2.5" fill="none"
+                  strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M102 36 L115 22 L128 34 L142 18 L155 36"
+                  stroke={COLORS.primary} strokeWidth="2.5" fill="none"
+                  strokeLinecap="round" strokeLinejoin="round"/>
             <text x="24" y="20" fontFamily="serif" fontSize="16" fill={COLORS.primary} fontWeight="bold">恒</text>
-            <text x="52" y="25" fontFamily="Arial, sans-serif" fontSize="11" fill="white" fontWeight="bold">HENG YUN</text>
-            <text x="52" y="36" fontFamily="Arial, sans-serif" fontSize="6" fill="#cbd5e1" letterSpacing="0.5">SAND AND QUARRY SUPPLIES</text>
+            <text x="52" y="25" fontFamily="Arial, sans-serif" fontSize="12" fill={COLORS.white} fontWeight="bold">HENG YUN</text>
           </svg>
         </Link>
 
-        {/* Right side: language + hamburger */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          {/* Language button — always visible */}
+        {/* Nav right (desktop) — big space in between */}
+        <nav className="hy-desktop-nav" style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "2rem",
+        }}>
+          {navLinks.map(link => {
+            const active = currentPath === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                style={{
+                  color: active ? COLORS.primary : COLORS.white,
+                  fontWeight: active ? "700" : "500",
+                  fontSize: "0.9rem",
+                  letterSpacing: "0.5px",
+                  textDecoration: "none",
+                  textTransform: "uppercase",
+                }}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+
+          {/* Globe dropdown at the far right, subtle */}
           <div ref={langRef} style={{ position: "relative" }}>
             <button
               onClick={() => setLangOpen(!langOpen)}
               style={{
-                width: "40px", height: "40px",
-                borderRadius: "50%", border: "none",
-                background: "transparent", color: "white",
-                cursor: "pointer", display: "flex",
-                alignItems: "center", justifyContent: "center",
-                fontSize: "1.1rem",
+                width: "34px", height: "34px",
+                borderRadius: "50%",
+                background: "transparent",
+                border: "none",
+                color: "#94a3b8",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "0.9rem",
+                opacity: 0.7,
               }}
               aria-label="Language"
             >
@@ -127,7 +150,7 @@ export default function PublicHeader() {
                       border: "none", textAlign: "left",
                       cursor: "pointer", fontSize: "0.85rem",
                       borderRadius: "6px",
-                      color: locale === l.code ? COLORS.primaryDark : "#111827",
+                      color: "#111827",
                       fontWeight: locale === l.code ? "600" : "400",
                     }}
                   >
@@ -138,109 +161,77 @@ export default function PublicHeader() {
             )}
           </div>
 
-          {/* Hamburger (mobile only) */}
-          <button
-            onClick={() => setMenuOpen(true)}
-            className="hy-hamburger-btn"
-            style={{
-              width: "42px", height: "42px",
-              background: "transparent",
-              border: "none",
-              color: "white",
-              cursor: "pointer",
-              display: "none",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "1.5rem",
-            }}
-            aria-label="Open menu"
-          >
-            <FontAwesomeIcon icon={faBars} />
-          </button>
-        </div>
-
-        {/* Desktop nav (hidden on mobile) */}
-        <nav className="hy-desktop-nav" style={{
-          display: "flex",
-          gap: "1.75rem",
-          alignItems: "center",
-        }}>
-          {navLinks.map(link => (
-            <Link
-              key={link.href}
-              href={link.href}
-              style={{
-                color: currentPath === link.href ? COLORS.primary : "white",
-                fontWeight: currentPath === link.href ? "700" : "500",
-                fontSize: "0.95rem",
-                textDecoration: "none",
-                letterSpacing: "0.3px",
-              }}
-            >
-              {link.label}
-            </Link>
-          ))}
+          {/* Login button */}
           <Link
             href="/login"
             style={{
               background: COLORS.primary,
               color: "white",
-              padding: "0.5rem 1.25rem",
+              padding: "0.55rem 1.5rem",
               borderRadius: "8px",
               textDecoration: "none",
-              fontWeight: "600",
-              fontSize: "0.9rem",
+              fontWeight: "700",
+              fontSize: "0.85rem",
+              letterSpacing: "0.5px",
+              textTransform: "uppercase",
             }}
           >
             {t.login}
           </Link>
         </nav>
+
+        {/* Hamburger (mobile only) */}
+        <button
+          onClick={() => setMenuOpen(true)}
+          className="hy-hamburger-btn"
+          style={{
+            width: "44px", height: "44px",
+            background: "transparent",
+            border: "none",
+            color: "white",
+            cursor: "pointer",
+            display: "none",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.5rem",
+          }}
+          aria-label="Open menu"
+        >
+          <FontAwesomeIcon icon={faBars} />
+        </button>
       </header>
 
       {/* ============ MOBILE SLIDE-IN PANEL ============ */}
       {menuOpen && (
         <>
-          {/* Gray overlay */}
           <div
             onClick={() => setMenuOpen(false)}
             style={{
-              position: "fixed",
-              top: 0, left: 0, right: 0, bottom: 0,
-              background: "rgba(0,0,0,0.5)",
+              position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+              background: "rgba(0,0,0,0.55)",
               zIndex: 9998,
-              animation: "hy-fade-in 0.25s ease",
+              animation: "hy-fade-in 0.2s ease",
             }}
           />
-
-          {/* Panel */}
           <aside style={{
-            position: "fixed",
-            top: 0, right: 0, bottom: 0,
-            width: "min(340px, 88vw)",
+            position: "fixed", top: 0, right: 0, bottom: 0,
+            width: "min(320px, 85vw)",
             background: COLORS.navDark,
             zIndex: 9999,
             display: "flex",
             flexDirection: "column",
-            animation: "hy-slide-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-            boxShadow: "-8px 0 30px rgba(0,0,0,0.3)",
+            animation: "hy-slide-in 0.28s cubic-bezier(0.4, 0, 0.2, 1)",
           }}>
-            {/* Close header */}
+            {/* Header — just an X, no logo (avoids duplication) */}
             <div style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center",
+              display: "flex", justifyContent: "flex-end", alignItems: "center",
               padding: "1rem 1.25rem",
-              borderBottom: "1px solid rgba(255,255,255,0.08)",
             }}>
-              <svg width="110" height="30" viewBox="0 0 160 45" fill="none">
-                <path d="M8 36 L25 14 L38 27 L52 9 L70 31 L84 18 L102 36" stroke={COLORS.primary} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M102 36 L115 22 L128 34 L142 18 L155 36" stroke={COLORS.primary} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                <text x="24" y="20" fontFamily="serif" fontSize="16" fill={COLORS.primary} fontWeight="bold">恒</text>
-                <text x="52" y="25" fontFamily="Arial, sans-serif" fontSize="11" fill="white" fontWeight="bold">HENG YUN</text>
-              </svg>
               <button
                 onClick={() => setMenuOpen(false)}
                 style={{
                   background: "transparent", border: "none",
-                  color: "white", fontSize: "1.6rem",
+                  color: "white", fontSize: "1.7rem",
                   cursor: "pointer", width: "40px", height: "40px",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}
@@ -251,7 +242,7 @@ export default function PublicHeader() {
             </div>
 
             {/* Links */}
-            <nav style={{ flex: 1, overflowY: "auto", padding: "0.5rem 0" }}>
+            <nav style={{ flex: 1, overflowY: "auto" }}>
               {navLinks.map(link => {
                 const active = currentPath === link.href;
                 return (
@@ -278,22 +269,17 @@ export default function PublicHeader() {
               })}
             </nav>
 
-            {/* Login button at bottom */}
-            <div style={{ padding: "1.25rem 1.75rem", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+            {/* Login */}
+            <div style={{ padding: "1.25rem 1.75rem" }}>
               <Link
                 href="/login"
                 onClick={() => setMenuOpen(false)}
                 style={{
-                  display: "block",
-                  textAlign: "center",
-                  background: COLORS.primary,
-                  color: "white",
-                  padding: "0.85rem",
-                  borderRadius: "8px",
-                  textDecoration: "none",
-                  fontWeight: "700",
-                  fontSize: "0.95rem",
-                  letterSpacing: "0.5px",
+                  display: "block", textAlign: "center",
+                  background: COLORS.primary, color: "white",
+                  padding: "0.85rem", borderRadius: "8px",
+                  textDecoration: "none", fontWeight: "700",
+                  fontSize: "0.95rem", letterSpacing: "0.5px",
                 }}
               >
                 {t.login}
@@ -312,11 +298,7 @@ export default function PublicHeader() {
           from { opacity: 0; }
           to { opacity: 1; }
         }
-
-        /* Default: hamburger hidden, desktop nav visible */
         .hy-hamburger-btn { display: none !important; }
-
-        /* Mobile: hamburger visible, desktop nav hidden */
         @media (max-width: 900px) {
           .hy-desktop-nav { display: none !important; }
           .hy-hamburger-btn { display: flex !important; }

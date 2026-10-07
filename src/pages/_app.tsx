@@ -15,17 +15,30 @@ import '../styles/responsive.css';
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
-
-  // ✅ Public vs dashboard split
-  const isDashboard = router.pathname.startsWith('/dashboard');
-  const isPublic = !isDashboard;
+  const isPublic = !router.pathname.startsWith('/dashboard');
+  const isDashboard = !isPublic;
 
   const [loading, setLoading] = useState(false);
 
-  // ✅ Loading spinner on route changes
+  // ✅ Loading spinner with minimum 400ms display (no flash)
   useEffect(() => {
-    const handleStart = () => setLoading(true);
-    const handleComplete = () => setLoading(false);
+    let minTimer: NodeJS.Timeout | null = null;
+
+    const handleStart = () => {
+      setLoading(true);
+      minTimer = setTimeout(() => {
+        minTimer = null;
+      }, 400);
+    };
+
+    const handleComplete = () => {
+      if (minTimer) {
+        setTimeout(() => setLoading(false), 400);
+      } else {
+        setLoading(false);
+      }
+    };
+
     router.events.on('routeChangeStart', handleStart);
     router.events.on('routeChangeComplete', handleComplete);
     router.events.on('routeChangeError', handleComplete);
@@ -33,20 +46,21 @@ export default function App({ Component, pageProps }: AppProps) {
       router.events.off('routeChangeStart', handleStart);
       router.events.off('routeChangeComplete', handleComplete);
       router.events.off('routeChangeError', handleComplete);
+      if (minTimer) clearTimeout(minTimer);
     };
   }, [router]);
 
-  // ✅ Apply user preferences — ONLY on dashboard pages
+  // ✅ Apply user preferences — ONLY on dashboard pages (no more 401 on public)
   useEffect(() => {
-    if (!isDashboard) return;          // ← skip on all public pages
+    if (!isDashboard) return;
     const token = localStorage.getItem('token');
-    if (!token) return;                 // ← skip if not logged in
+    if (!token) return;
 
     const applyPreferences = async () => {
       try {
         const res = await fetch('/api/user/preferences', { headers: getAuthHeaders() });
 
-        // 401 = expired/invalid token → clear it, stop retrying
+        // 401 = expired token → clear and stop
         if (res.status === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
@@ -63,15 +77,15 @@ export default function App({ Component, pageProps }: AppProps) {
             document.body.classList.remove('compact-mode');
           }
         }
-      } catch (err) {
-        // Silent fail — no console spam
+      } catch {
+        // silent fail — no console spam
       }
     };
 
     applyPreferences();
   }, [isDashboard, router.pathname]);
 
-  // ✅ Maintenance mode check — public-safe endpoint
+  // ✅ Maintenance mode check (public-safe endpoint)
   useEffect(() => {
     const checkMaintenance = async () => {
       try {
@@ -83,8 +97,8 @@ export default function App({ Component, pageProps }: AppProps) {
             window.location.href = '/maintenance';
           }
         }
-      } catch (err) {
-        // Silent fail
+      } catch {
+        // silent fail
       }
     };
     checkMaintenance();
