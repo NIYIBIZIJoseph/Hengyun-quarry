@@ -39,6 +39,7 @@ export default function PublicHeader() {
 
   const currentPath = router.asPath.split('?')[0].split('#')[0];
 
+  // ✅ HOME is first — appears at the top of mobile menu
   const navLinks = [
     { href: "/", label: t.home },
     { href: "/about", label: t.about },
@@ -54,7 +55,6 @@ export default function PublicHeader() {
     { code: "zh", label: "中文" },
   ];
 
-  // ✅ Language changer — no reload (sessionStorage + React re-render handle it)
   const changeLanguage = (code: string) => {
     setLocale(code as any);
     setLangOpen(false);
@@ -177,19 +177,20 @@ export default function PublicHeader() {
             )}
           </div>
 
-          {/* Login */}
+          {/* ✅ LOGIN — text only, no background, no border */}
           <Link
             href="/login"
             style={{
-              background: COLORS.primary,
-              color: "white",
-              padding: "0.6rem 1.6rem",
-              borderRadius: "8px",
+              background: "transparent",
+              color: COLORS.primary,
+              border: "none",
+              padding: "0.5rem 0.75rem",
               textDecoration: "none",
               fontWeight: "700",
-              fontSize: "0.85rem",
+              fontSize: "0.9rem",
               letterSpacing: "0.5px",
               textTransform: "uppercase",
+              transition: "opacity 0.2s",
             }}
           >
             {t.login}
@@ -257,6 +258,7 @@ export default function PublicHeader() {
             </div>
 
             <nav style={{ flex: 1, overflowY: "auto" }}>
+              {/* ✅ ALL links including HOME — mapped in order, no filter */}
               {navLinks.map(link => {
                 const active = currentPath === link.href;
                 return (
@@ -282,7 +284,7 @@ export default function PublicHeader() {
                 );
               })}
 
-              {/* ✅ Language switcher inside mobile menu */}
+              {/* Language switcher inside mobile menu */}
               <div>
                 <button
                   onClick={() => setLangOpen(!langOpen)}
@@ -345,16 +347,23 @@ export default function PublicHeader() {
               </div>
             </nav>
 
+            {/* ✅ LOGIN — text only, no background, no border */}
             <div style={{ padding: "1.25rem 1.75rem" }}>
               <Link
                 href="/login"
                 onClick={() => setMenuOpen(false)}
                 style={{
-                  display: "block", textAlign: "center",
-                  background: COLORS.primary, color: "white",
-                  padding: "0.85rem", borderRadius: "8px",
-                  textDecoration: "none", fontWeight: "700",
-                  fontSize: "0.95rem", letterSpacing: "0.5px",
+                  display: "block",
+                  textAlign: "center",
+                  background: "transparent",
+                  color: COLORS.primary,
+                  border: "none",
+                  padding: "0.75rem",
+                  textDecoration: "none",
+                  fontWeight: "700",
+                  fontSize: "1rem",
+                  letterSpacing: "0.5px",
+                  textTransform: "uppercase",
                 }}
               >
                 {t.login}

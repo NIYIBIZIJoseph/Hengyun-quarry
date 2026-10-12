@@ -287,7 +287,6 @@ export default function Home() {
     },
   ];
 
-  // ✅ Updated facility images — 4 images now
   const facilityImages = [
     "/operations/operation1.jpg",
     "/operations/operation2.jpg",
@@ -295,7 +294,6 @@ export default function Home() {
     "/operations/operation4.jpg",
   ];
 
-  // ✅ Hero auto-slide (via video onEnded — no interval needed here)
   useEffect(() => {
     videoRefs.current.forEach((v, idx) => {
       if (!v) return;
@@ -312,7 +310,6 @@ export default function Home() {
     });
   }, [currentSlide]);
 
-  // ✅ Facility auto-slide every 4 seconds
   useEffect(() => {
     const timer = setInterval(() => {
       setFacilitySlide((prev) => (prev + 1) % facilityImages.length);
@@ -550,17 +547,17 @@ export default function Home() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "2rem" }}>
             {[
               {
-                img: "https://images.pexels.com/photos/162639/digger-machine-machinery-construction-162639.jpeg",
+                img: "/operations/operation1.jpg",
                 title: t.meticulousPlanningTitle,
                 desc: t.meticulousPlanningDesc,
               },
               {
-                img: "https://images.pexels.com/photos/31925745/pexels-photo-31925745.jpeg",
+                img: "/operations/operation2.jpg",
                 title: t.perfectExecutionTitle,
                 desc: t.perfectExecutionDesc,
               },
               {
-                img: "https://images.pexels.com/photos/210182/pexels-photo-210182.jpeg",
+                img: "/operations/operation3.jpg",
                 title: t.completionOnTimeTitle,
                 desc: t.completionOnTimeDesc,
               },
